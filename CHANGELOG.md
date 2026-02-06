@@ -2,6 +2,14 @@
 
 All notable changes to Clipp will be documented in this file.
 
+## [1.0.1] - 2026-02-06
+
+### Fixed
+- Fixed instant number paste - numbers now work correctly (1-9)
+- Search auto-focuses when typing letters (maintains search usability)
+- Fixed window positioning to appear below menu bar icon
+- Fixed max window height (500px instead of full screen)
+
 ## [1.0.0] - 2026-02-06
 
 ### Added
