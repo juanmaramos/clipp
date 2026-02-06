@@ -155,6 +155,12 @@ struct KeyHandlingView<Content: View>: View {
           return .handled
         }
 
+        // Auto-focus search when typing regular text (not shortcuts)
+        if keyChord == .unknown && !searchFocused {
+          searchFocused = true
+          return .ignored  // Let the text field handle the character
+        }
+
         return .ignored
       }
   }

@@ -35,9 +35,6 @@ struct ContentView: View {
       .animation(.easeInOut(duration: 0.2), value: appState.searchVisible)
       .padding(.vertical, Popup.verticalPadding)
       .padding(.horizontal, Popup.horizontalPadding)
-      .onAppear {
-        searchFocused = true
-      }
       .onMouseMove {
         appState.isKeyboardNavigating = false
       }
