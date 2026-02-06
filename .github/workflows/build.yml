@@ -91,6 +91,9 @@ jobs:
         run: |
           cd build/Build/Products/Release
 
+          # Rename app from Maccy to Clipp
+          mv Maccy.app Clipp.app
+
           # Create a clean zip
           ditto -c -k --sequesterRsrc --keepParent Clipp.app $GITHUB_WORKSPACE/Clipp.zip
 
