@@ -2,7 +2,7 @@
 
 All notable changes to Clipp will be documented in this file.
 
-## [1.0.0] - TBD
+## [1.0.0] - 2026-02-06
 
 ### Added
 - **Instant number paste** - Press `1-9` to instantly paste clipboard items (Clipy-style)
