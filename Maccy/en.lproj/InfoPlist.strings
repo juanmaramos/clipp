@@ -1,0 +1,3 @@
+/* Localized display name for the application */
+CFBundleName = "Clipp";
+CFBundleDisplayName = "Clipp";

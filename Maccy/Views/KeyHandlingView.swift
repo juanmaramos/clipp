@@ -16,16 +16,32 @@ struct KeyHandlingView<Content: View>: View {
         // so pressing ⌘, on non-English layout doesn't open
         // preferences. Stick to NSEvent to fix this behavior.
 
-        if searchFocused {
-          // Ignore input when candidate window is open
-          // https://stackoverflow.com/questions/73677444/how-to-detect-the-candidate-window-when-using-japanese-keyboard
-          if let inputClient = NSApp.keyWindow?.firstResponder as? NSTextInputClient,
-             inputClient.hasMarkedText() {
-            return .ignored
+        let keyChord = KeyChord(NSApp.currentEvent)
+
+        // Handle app shortcuts FIRST, even when search is focused
+        // This prevents text field from capturing Cmd+, and similar shortcuts
+        switch keyChord {
+        case .openPreferences, .clearHistory, .clearHistoryAll,
+             .deleteCurrentItem, .pinOrUnpin, .close:
+          // These shortcuts should work regardless of search focus
+          break
+        default:
+          // For other keys, check search field state
+          if searchFocused {
+            // Ignore input when candidate window is open
+            // https://stackoverflow.com/questions/73677444/how-to-detect-the-candidate-window-when-using-japanese-keyboard
+            if let inputClient = NSApp.keyWindow?.firstResponder as? NSTextInputClient,
+               inputClient.hasMarkedText() {
+              return .ignored
+            }
+            // Let search field handle regular typing
+            if keyChord == .unknown {
+              return .ignored
+            }
           }
         }
 
-        switch KeyChord(NSApp.currentEvent) {
+        switch keyChord {
         case .clearHistory:
           if let item = appState.footer.items.first(where: { $0.title == "clear" }),
              item.confirmation != nil,
@@ -117,6 +133,17 @@ struct KeyHandlingView<Content: View>: View {
           return .handled
         default:
           ()
+        }
+
+        // Handle bare number presses (1-9, 0) for instant paste (Clipy-style)
+        // Only when search field is not focused
+        if !searchFocused, let item = appState.history.bareNumberPressedItem {
+          appState.selection = item.id
+          Task {
+            try? await Task.sleep(for: .milliseconds(50))
+            appState.history.select(item)
+          }
+          return .handled
         }
 
         if let item = appState.history.pressedShortcutItem {

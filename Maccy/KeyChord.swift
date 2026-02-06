@@ -102,8 +102,6 @@ enum KeyChord: CaseIterable {
       self = .selectCurrentItem
     case (.escape, _):
       self = .close
-    case (_, _) where !modifierFlags.isDisjoint(with: [.command, .control, .option]):
-      self = .ignored
     default:
       self = .unknown
     }

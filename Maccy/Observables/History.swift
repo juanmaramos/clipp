@@ -57,6 +57,24 @@ class History { // swiftlint:disable:this type_body_length
     return items.first { $0.shortcuts.contains(where: { $0.key == key }) }
   }
 
+  var bareNumberPressedItem: HistoryItemDecorator? {
+    guard let event = NSApp.currentEvent else {
+      return nil
+    }
+
+    let modifierFlags = event.modifierFlags
+      .intersection(.deviceIndependentFlagsMask)
+      .subtracting([.capsLock, .numericPad, .function])
+
+    // Only match when no modifiers are pressed (bare key press)
+    guard modifierFlags.isEmpty else {
+      return nil
+    }
+
+    let key = Sauce.shared.key(for: Int(event.keyCode))
+    return items.first { $0.shortcuts.contains(where: { $0.key == key }) }
+  }
+
   private let search = Search()
   private let sorter = Sorter()
   private let throttler = Throttler(minimumDelay: 0.2)

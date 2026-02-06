@@ -13,7 +13,7 @@ struct HeaderView: View {
   var body: some View {
     HStack {
       if showTitle {
-        Text("Maccy")
+        Text("Clipp")
           .foregroundStyle(.secondary)
       }
 

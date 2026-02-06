@@ -33,28 +33,40 @@ struct GeneralSettingsPane: View {
       }
 
       Settings.Section(label: { Text("Open", tableName: "GeneralSettings") }) {
-        KeyboardShortcuts.Recorder(for: .popup, onChange: { newShortcut in
-          if newShortcut == nil {
-            // No shortcut is recorded. Remove keys monitor
-            AppState.shared.popup.deinitEventsMonitor()
-          } else {
-            // User is using shortcut. Ensure keys monitor is initialized
-            AppState.shared.popup.initEventsMonitor()
-          }
-        })
-          .help(Text("OpenTooltip", tableName: "GeneralSettings"))
+        VStack(alignment: .leading, spacing: 4) {
+          KeyboardShortcuts.Recorder(for: .popup, onChange: { newShortcut in
+            if newShortcut == nil {
+              // No shortcut is recorded. Remove keys monitor
+              AppState.shared.popup.deinitEventsMonitor()
+            } else {
+              // User is using shortcut. Ensure keys monitor is initialized
+              AppState.shared.popup.initEventsMonitor()
+            }
+          })
+          Text("OpenTooltip", tableName: "GeneralSettings")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       }
 
       Settings.Section(label: { Text("Pin", tableName: "GeneralSettings") }) {
-        KeyboardShortcuts.Recorder(for: .pin)
-          .help(Text("PinTooltip", tableName: "GeneralSettings"))
+        VStack(alignment: .leading, spacing: 4) {
+          KeyboardShortcuts.Recorder(for: .pin)
+          Text("PinTooltip", tableName: "GeneralSettings")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       }
       Settings.Section(
         bottomDivider: true,
         label: { Text("Delete", tableName: "GeneralSettings") }
       ) {
-        KeyboardShortcuts.Recorder(for: .delete)
-          .help(Text("DeleteTooltip", tableName: "GeneralSettings"))
+        VStack(alignment: .leading, spacing: 4) {
+          KeyboardShortcuts.Recorder(for: .delete)
+          Text("DeleteTooltip", tableName: "GeneralSettings")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       }
 
       Settings.Section(

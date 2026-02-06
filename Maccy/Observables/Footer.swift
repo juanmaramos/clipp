@@ -53,7 +53,7 @@ class Footer {
       },
       FooterItem(
         title: "preferences",
-        shortcuts: [KeyShortcut(key: .comma)]
+        shortcuts: [KeyShortcut(key: .comma, modifierFlags: [.command])]
       ) {
         Task { @MainActor in
           AppState.shared.openPreferences()
@@ -67,7 +67,7 @@ class Footer {
       },
       FooterItem(
         title: "quit",
-        shortcuts: [KeyShortcut(key: .q)],
+        shortcuts: [KeyShortcut(key: .q, modifierFlags: [.command])],
         help: "quit_tooltip"
       ) {
         AppState.shared.quit()
