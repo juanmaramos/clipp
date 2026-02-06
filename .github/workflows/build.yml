@@ -1,0 +1,81 @@
+name: Build Clipp
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_15.2.app
+
+      # Only needed if you want code signing + notarization
+      # Uncomment when you have Apple Developer account
+
+      # - name: Import certificates
+      #   env:
+      #     CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      #   run: |
+      #     # Create keychain
+      #     security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+      #     security default-keychain -s build.keychain
+      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+      #     # Import certificate
+      #     echo $CERTIFICATE_BASE64 | base64 --decode > certificate.p12
+      #     security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+      #     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+      - name: Build app
+        run: |
+          xcodebuild \
+            -project Maccy.xcodeproj \
+            -scheme Maccy \
+            -configuration Release \
+            -derivedDataPath build \
+            build
+
+      # Only if you have notarization set up
+      # - name: Notarize app
+      #   env:
+      #     APPLE_ID: ${{ secrets.APPLE_ID }}
+      #     APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+      #     TEAM_ID: ${{ secrets.TEAM_ID }}
+      #   run: |
+      #     xcrun notarytool submit build/Build/Products/Release/Clipp.app \
+      #       --apple-id "$APPLE_ID" \
+      #       --password "$APPLE_ID_PASSWORD" \
+      #       --team-id "$TEAM_ID" \
+      #       --wait
+
+      - name: Create DMG
+        run: |
+          # Simple zip for now (replace with DMG creator later)
+          cd build/Build/Products/Release
+          zip -r Clipp.zip Clipp.app
+          mv Clipp.zip $GITHUB_WORKSPACE/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Clipp
+          path: Clipp.zip
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: Clipp.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
