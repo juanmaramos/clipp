@@ -112,6 +112,32 @@ open Maccy.xcodeproj
 
 Build with Xcode 15+ and Swift 5.9+
 
+## Releasing
+
+To create a new release:
+
+```sh
+# Update version in CHANGELOG.md
+# Commit your changes
+git add .
+git commit -m "Release v1.0.0"
+
+# Create and push tag
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+GitHub Actions will automatically:
+1. Build the app
+2. Create a .zip package
+3. Generate SHA-256 checksum
+4. Create a GitHub Release
+5. Attach downloadable files
+
+Users can then download from: https://github.com/juanmaramos/clipp/releases
+
+For code signing and notarization setup, see [DISTRIBUTION.md](./DISTRIBUTION.md)
+
 ## Credits
 
 Clipp is a fork of [Maccy](https://github.com/p0deje/Maccy) by Alex Rodionov.
