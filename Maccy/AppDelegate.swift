@@ -37,6 +37,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // Bridge FloatingPanel via AppDelegate.
     AppState.shared.appDelegate = self
 
+    // Migrate to Clipp v1.0 defaults
+    migrateToClippDefaults()
+
     Clipboard.shared.onNewCopy { History.shared.add($0) }
     Clipboard.shared.start()
 
@@ -111,6 +114,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     if Defaults[.clearOnQuit] {
       AppState.shared.history.clear()
     }
+  }
+
+  private func migrateToClippDefaults() {
+    // Run migration only once for Clipp v1.0
+    guard Defaults[.migrations]["clipp_v1.0_defaults"] != true else {
+      return
+    }
+
+    // Set better default max height (500px instead of 800px)
+    let currentSize = Defaults[.windowSize]
+    if currentSize.height > 500 {
+      Defaults[.windowSize] = NSSize(width: currentSize.width, height: 500)
+    }
+
+    // Set popup to appear below status bar icon (instead of at cursor)
+    if Defaults[.popupPosition] == .cursor {
+      Defaults[.popupPosition] = .statusItem
+    }
+
+    // Mark migration as complete
+    Defaults[.migrations]["clipp_v1.0_defaults"] = true
   }
 
   private func migrateUserDefaults() {
