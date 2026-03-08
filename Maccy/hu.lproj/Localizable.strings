@@ -21,9 +21,9 @@
 "preferences_advanced" = "Haladó";
 "clear_all_tooltip" = "Minden elem törlése.";
 "copy_modifiers_config" = "• Válassz a(z) %@ lenyomásával az elem másolásához.";
-"accessibility_alert_message" = "A “Maccy” irányítani szeretné ezt a számítógépet akadálymentesítési funkciók használatával.";
+"accessibility_alert_message" = "A “Clipp” irányítani szeretné ezt a számítógépet akadálymentesítési funkciók használatával.";
 "accessibility_alert_open" = "Rendszerbeállítások megnyitása";
-"accessibility_alert_comment" = "Adj engedélyt az alkalmazásnak a {pane} részben, amely a {settings} beállításoknál található.\n\nKattints a + gombra, válaszd a Maccy-t, majd kapcsold be a mellette lévő jelölőnégyzetet.";
+"accessibility_alert_comment" = "Adj engedélyt az alkalmazásnak a {pane} részben, amely a {settings} beállításoknál található.\n\nKattints a + gombra, válaszd a Clipp-t, majd kapcsold be a mellette lévő jelölőnégyzetet.";
 "system_settings_name" = "Rendszerbeállítások";
 "screen" = "Képernyő";
 "system_settings_pane" = "Adatvédelem és biztonság";

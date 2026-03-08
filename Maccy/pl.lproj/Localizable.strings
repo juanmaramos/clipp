@@ -9,7 +9,7 @@
 "copy_modifiers_config" = "• Wybierz z %@ aby skopiować.";
 "paste_modifiers_config" = "• Wybierz z %@ aby skopiować i wkleić.";
 "format_modifiers_config" = "• Wybierz %@ aby skopiować i wkleić z wyczyszczonym formatowaniem.";
-"accessibility_alert_message" = "“Maccy” chce kontrolować Twój komputer używając funkcji dostępności.";
+"accessibility_alert_message" = "“Clipp” chce kontrolować Twój komputer używając funkcji dostępności.";
 "accessibility_alert_deny" = "Zabroń";
 "accessibility_alert_open" = "Otwórz ustawienia systemowe";
 "clear_alert_message" = "Czy na pewno chcesz wyczyścić historię?";
@@ -26,5 +26,5 @@
 "quit_tooltip" = "Wyjdź z aplikacji.";
 "clear_tooltip" = "Wyczyść nieprzypięte pozycje\nWybierz z ⇧ aby wyczyścić wszystkie.";
 "clear" = "Wyczyść";
-"accessibility_alert_comment" = "Daj dostęp tej aplikacji w {pane}, w {settings}.\n\nKliknij przycisk +, wybierz Maccy i kliknij przełącznik obok.";
+"accessibility_alert_comment" = "Daj dostęp tej aplikacji w {pane}, w {settings}.\n\nKliknij przycisk +, wybierz Clipp i kliknij przełącznik obok.";
 "clear_alert_comment" = "Nie możesz cofnąć tej akcji.";

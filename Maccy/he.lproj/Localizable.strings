@@ -13,8 +13,8 @@
 "copy_modifiers_config" = "• יש לבחור תוך לחיצה על %@ כדי להעתיק פריט.";
 "paste_modifiers_config" = "• יש לבחור תוך לחיצה על %@ כדי להעתיק ולהדביק פריט.";
 "format_modifiers_config" = "• יש לבחור תוך לחיצה על %@ כדי להעתיק, להסיר עיצוב ולהדביק פריט.";
-"accessibility_alert_message" = "„Maccy” רוצה להשתלט על המחשב הזה דרך יכולות הנגישות.";
-"accessibility_alert_comment" = "הענקת גישה ליישום הזה דרך {pane}, שנמצא תחת {settings}.\n\nלחיצה + כפתור, לבחור ב־Maccy ולהחליף את מצב תיבת הסימון שלידו.";
+"accessibility_alert_message" = "„Clipp” רוצה להשתלט על המחשב הזה דרך יכולות הנגישות.";
+"accessibility_alert_comment" = "הענקת גישה ליישום הזה דרך {pane}, שנמצא תחת {settings}.\n\nלחיצה + כפתור, לבחור ב־Clipp ולהחליף את מצב תיבת הסימון שלידו.";
 "accessibility_alert_deny" = "דחייה";
 "accessibility_alert_open" = "פתיחת העדפות המערכת";
 "clear_alert_message" = "לפנות את ההיסטוריה?";

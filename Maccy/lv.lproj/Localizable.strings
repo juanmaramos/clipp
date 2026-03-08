@@ -25,6 +25,6 @@
 "accessibility_alert_open" = "Atvērt sistēmas iestatījumus";
 "clear_alert_message" = "Vai tiešām vēlaties notīrīt vēsturi?";
 "clear_alert_comment" = "Šo darbību nevar atsaukt.";
-"accessibility_alert_comment" = "Piešķirt piekļuvi šai lietotnei izvelnē {pane}, kas atrodas {settings}.\n\nNoklikšķiniet uz + pogas, atlasiet Maccy un ieslēdziet tai blakus esošo izvēles ķeksīti.";
+"accessibility_alert_comment" = "Piešķirt piekļuvi šai lietotnei izvelnē {pane}, kas atrodas {settings}.\n\nNoklikšķiniet uz + pogas, atlasiet Clipp un ieslēdziet tai blakus esošo izvēles ķeksīti.";
 "clear_alert_cancel" = "Atcelt";
-"accessibility_alert_message" = "“Maccy” vēlas kontrolēt šo datoru, izmantojot pieejamības līdzekļus.";
+"accessibility_alert_message" = "“Clipp” vēlas kontrolēt šo datoru, izmantojot pieejamības līdzekļus.";

@@ -22,77 +22,74 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      # Uncomment when you have Apple Developer account for code signing
-      # - name: Import Code Signing Certificate
-      #   if: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}
-      #   env:
-      #     CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-      #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-      #   run: |
-      #     # Create temporary keychain
-      #     security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-      #     security default-keychain -s build.keychain
-      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-      #     security set-keychain-settings -lut 21600 build.keychain
-      #
-      #     # Import certificate
-      #     echo "$CERTIFICATE_BASE64" | base64 --decode > certificate.p12
-      #     security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
-      #     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
-      #
-      #     # Cleanup
-      #     rm certificate.p12
+      - name: Import Code Signing Certificate
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+
+          # Import Developer ID Application certificate
+          echo "$CERTIFICATE_BASE64" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          rm certificate.p12
 
       - name: Build Clipp
+        env:
+          TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
           xcodebuild \
             -project Maccy.xcodeproj \
-            -scheme Maccy \
+            -scheme Clipp \
             -configuration Release \
             -derivedDataPath build \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
             clean build
 
           echo "✅ Build completed"
           ls -lh build/Build/Products/Release/
 
-      # Uncomment when you have notarization credentials
-      # - name: Code Sign and Notarize
-      #   if: ${{ secrets.APPLE_ID != '' }}
-      #   env:
-      #     APPLE_ID: ${{ secrets.APPLE_ID }}
-      #     APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-      #     TEAM_ID: ${{ secrets.TEAM_ID }}
-      #   run: |
-      #     APP_PATH="build/Build/Products/Release/Clipp.app"
-      #
-      #     # Code sign
-      #     codesign --force --deep --sign "Developer ID Application" "$APP_PATH"
-      #
-      #     # Create zip for notarization
-      #     ditto -c -k --keepParent "$APP_PATH" Clipp-notarize.zip
-      #
-      #     # Submit for notarization
-      #     xcrun notarytool submit Clipp-notarize.zip \
-      #       --apple-id "$APPLE_ID" \
-      #       --password "$APPLE_ID_PASSWORD" \
-      #       --team-id "$TEAM_ID" \
-      #       --wait
-      #
-      #     # Staple notarization ticket
-      #     xcrun stapler staple "$APP_PATH"
-      #
-      #     rm Clipp-notarize.zip
+      - name: Notarize Clipp
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          APP_PATH="build/Build/Products/Release/Clipp.app"
+
+          # Verify the app is properly signed
+          codesign --verify --deep --strict "$APP_PATH"
+          echo "✅ Code signature verified"
+
+          # Zip for notarization (ditto preserves extended attributes)
+          ditto -c -k --keepParent "$APP_PATH" Clipp-notarize.zip
+
+          # Submit to Apple and wait (usually 1-3 minutes)
+          xcrun notarytool submit Clipp-notarize.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$TEAM_ID" \
+            --wait
+
+          # Staple the notarization ticket to the app bundle
+          xcrun stapler staple "$APP_PATH"
+          echo "✅ Notarization complete and ticket stapled"
+
+          rm Clipp-notarize.zip
 
       - name: Create Distribution Package
         run: |
           cd build/Build/Products/Release
-
-          # Rename app from Maccy to Clipp
-          mv Maccy.app Clipp.app
 
           # Create a clean zip
           ditto -c -k --sequesterRsrc --keepParent Clipp.app $GITHUB_WORKSPACE/Clipp.zip
@@ -124,6 +121,53 @@ jobs:
             Clipp.zip.sha256
           retention-days: 30
 
+      - name: Sign Update for Sparkle
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          SIGN_UPDATE="/Users/runner/Library/Developer/Xcode/DerivedData/Maccy-*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
+          SIGN_UPDATE=$(ls $SIGN_UPDATE 2>/dev/null | head -1)
+
+          if [ -z "$SIGN_UPDATE" ]; then
+            echo "sign_update not found in DerivedData, downloading Sparkle tools..."
+            SPARKLE_VERSION="2.7.5"
+            curl -L "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" -o sparkle.tar.xz
+            mkdir -p sparkle_tools && tar -xf sparkle.tar.xz -C sparkle_tools
+            SIGN_UPDATE="sparkle_tools/bin/sign_update"
+          fi
+
+          # Write private key to temp file
+          echo "$SPARKLE_PRIVATE_KEY" > /tmp/sparkle_private_key
+
+          SIGNATURE=$("$SIGN_UPDATE" Clipp.zip --account clipp -f /tmp/sparkle_private_key 2>/dev/null || "$SIGN_UPDATE" Clipp.zip -f /tmp/sparkle_private_key)
+          rm /tmp/sparkle_private_key
+
+          echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
+          echo "✅ Sparkle signature: $SIGNATURE"
+
+      - name: Prepare Release Notes
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          {
+            echo "RELEASE_BODY<<EOF"
+            echo "## Clipp ${VERSION}"
+            echo
+            echo 'Download `Clipp.zip`, extract, and move `Clipp.app` to your Applications folder.'
+            echo
+            echo "### SHA-256 Checksum"
+            echo
+            echo '```'
+            cat Clipp.zip.sha256
+            echo '```'
+            echo
+            echo "### Changes"
+            echo
+            echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${DEFAULT_BRANCH}/CHANGELOG.md) for details."
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -131,36 +175,66 @@ jobs:
           files: |
             Clipp.zip
             Clipp.zip.sha256
-          body: |
-            ## Clipp ${{ env.VERSION }}
-
-            Download `Clipp.zip`, extract, and move to Applications folder.
-
-            ### First Time Installation
-
-            Since this app is not notarized, you need to:
-            1. **Right-click** on Clipp.app
-            2. Select **"Open"**
-            3. Click **"Open"** in the dialog
-
-            After the first launch, you can open it normally.
-
-            ### SHA-256 Checksum
-
-            ```
-            $(cat Clipp.zip.sha256)
-            ```
-
-            ### Changes
-
-            See [CHANGELOG.md](https://github.com/juanmaramos/clipp/blob/master/CHANGELOG.md) for details.
+          body: ${{ env.RELEASE_BODY }}
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Update Appcast
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          APP_PATH="build/Build/Products/Release/Clipp.app"
+          BUILD_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Contents/Info.plist")
+          ZIP_LENGTH=$(stat -f%z Clipp.zip)
+          PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
+          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/Clipp.zip"
+          RELEASE_NOTES_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/v${VERSION}"
+
+          cat > appcast.xml <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <channel>
+              <title>Clipp</title>
+              <link>https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${DEFAULT_BRANCH}/appcast.xml</link>
+              <description>Most recent changes with links to updates.</description>
+              <language>en</language>
+              <item>
+                <title>${VERSION}</title>
+                <description>
+                  <![CDATA[
+                    <ul>
+                      <li>See CHANGELOG for details.</li>
+                    </ul>
+                  ]]>
+                </description>
+                <pubDate>${PUB_DATE}</pubDate>
+                <releaseNotesLink>${RELEASE_NOTES_URL}</releaseNotesLink>
+                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                <enclosure
+                  url="${DOWNLOAD_URL}"
+                  sparkle:version="${BUILD_VERSION}"
+                  sparkle:shortVersionString="${VERSION}"
+                  sparkle:edSignature="${SPARKLE_SIGNATURE}"
+                  length="${ZIP_LENGTH}"
+                  type="application/octet-stream"
+                />
+              </item>
+            </channel>
+          </rss>
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add appcast.xml
+          git commit -m "Update appcast for v${VERSION}"
+          git fetch origin "${DEFAULT_BRANCH}"
+          git rebase "origin/${DEFAULT_BRANCH}"
+          git push origin "HEAD:${DEFAULT_BRANCH}"
+
       - name: Cleanup
         if: always()
         run: |
-          # Delete temporary keychain if it was created
           security delete-keychain build.keychain 2>/dev/null || true

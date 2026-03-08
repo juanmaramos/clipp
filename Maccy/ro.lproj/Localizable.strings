@@ -11,7 +11,7 @@
 "preferences_pins" = "Elemente fixate";
 "copy_modifiers_config" = "• Selectează cu %@ apăsat pentru a copia un element.";
 "format_modifiers_config" = "• Selectează cu %@ apăsat pentru a copia, elimina formatarea și lipi un element.";
-"accessibility_alert_message" = "“Maccy” dorește să controleze acest calculator utilizând funcțiile de accesibilitate.";
+"accessibility_alert_message" = "“Clipp” dorește să controleze acest calculator utilizând funcțiile de accesibilitate.";
 "accessibility_alert_deny" = "Refuză";
 "clear_alert_message" = "Ești sigur că dorești să ștergi istoricul?";
 "clear_alert_comment" = "Nu poți anula această acțiune.";
@@ -27,4 +27,4 @@
 "key_used_error" = "Tasta e deja utilizată.";
 "clear_alert_confirm" = "Șterge";
 "active_screen" = "Ecranul activ";
-"accessibility_alert_comment" = "Acordă acces acestei aplicații în {pane}, aflat în {settings}.\n\nFă clic pe butonul +, selectează Maccy și bifează caseta de selectare de lânga aceasta.";
+"accessibility_alert_comment" = "Acordă acces acestei aplicații în {pane}, aflat în {settings}.\n\nFă clic pe butonul +, selectează Clipp și bifează caseta de selectare de lânga aceasta.";

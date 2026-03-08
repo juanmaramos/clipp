@@ -13,8 +13,8 @@
 "copy_modifiers_config" = "• Chọn bằng cách nhấn %@ để sao chép mục.";
 "paste_modifiers_config" = "• Chọn bằng cách nhấn %@ để sao chép và dán mục.";
 "format_modifiers_config" = "• Chọn bằng cách nhấn %@ để sao chép, xóa định dạng và dán mục.";
-"accessibility_alert_message" = "\"Maccy\" muốn điều khiển máy tính này bằng các tính năng trợ năng.";
-"accessibility_alert_comment" = "Cấp quyền truy cập vào ứng dụng này trong {pane}, nằm trong {settings}.\n\nNhấn nút +, chọn Maccy, và bật tùy chọn hộp kiểm bên cạnh nó.";
+"accessibility_alert_message" = "\"Clipp\" muốn điều khiển máy tính này bằng các tính năng trợ năng.";
+"accessibility_alert_comment" = "Cấp quyền truy cập vào ứng dụng này trong {pane}, nằm trong {settings}.\n\nNhấn nút +, chọn Clipp, và bật tùy chọn hộp kiểm bên cạnh nó.";
 "accessibility_alert_deny" = "Từ chối";
 "accessibility_alert_open" = "Mở Thiết lập Hệ thống";
 "clear_alert_message" = "Bạn có chắc chắn muốn xóa lịch sử không?";

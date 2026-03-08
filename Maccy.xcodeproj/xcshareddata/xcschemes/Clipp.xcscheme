@@ -16,8 +16,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "DAEE38421E3DBEB100DD2966"
-               BuildableName = "Maccy.app"
-               BlueprintName = "Maccy"
+               BuildableName = "Clipp.app"
+               BlueprintName = "Clipp"
                ReferencedContainer = "container:Maccy.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -72,8 +72,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "DAEE38421E3DBEB100DD2966"
-            BuildableName = "Maccy.app"
-            BlueprintName = "Maccy"
+            BuildableName = "Clipp.app"
+            BlueprintName = "Clipp"
             ReferencedContainer = "container:Maccy.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -89,8 +89,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "DAEE38421E3DBEB100DD2966"
-            BuildableName = "Maccy.app"
-            BlueprintName = "Maccy"
+            BuildableName = "Clipp.app"
+            BlueprintName = "Clipp"
             ReferencedContainer = "container:Maccy.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

@@ -1,7 +1,7 @@
 "Title" = "Прасунутыя";
 "TurnOff" = "Выключыць";
-"TurnOffShellScript" = "defaults write org.p0deje.Maccy ignoreEvents true\n# капіяваць дадзеныя\ndefaults write org.p0deje.Maccy ignoreEvents false";
-"TurnOffNextShellScript" = "defaults write org.p0deje.Maccy ignoreOnlyNextEvent true\n# капіяваць дадзеныя";
+"TurnOffShellScript" = "defaults write futurialabs.clipp ignoreEvents true\n# капіяваць дадзеныя\ndefaults write futurialabs.clipp ignoreEvents false";
+"TurnOffNextShellScript" = "defaults write futurialabs.clipp ignoreOnlyNextEvent true\n# капіяваць дадзеныя";
 "ClearHistoryOnQuit" = "Ачысціць гісторыю пры зачыненні";
 "ClearSystemClipboard" = "Таксама ачысціць сістэмны буфер абмену";
 "ClearSystemClipboardTooltip" = "Калі гэты параметр улучаны, ачыстка гісторыі таксама ачысціць бягучы сістэмны буфер абмену.";

@@ -13,7 +13,7 @@
 "quit" = "Sair";
 "copy_modifiers_config" = "• Selecione com %@ pressionado para copiar o item.";
 "paste_modifiers_config" = "• Selecione com %@ pressionado para copiar e colar o item.";
-"accessibility_alert_message" = "“Maccy” gostaria de controlar este computador usando as funções de acessibilidade.";
+"accessibility_alert_message" = "“Clipp” gostaria de controlar este computador usando as funções de acessibilidade.";
 "accessibility_alert_deny" = "Negar";
 "key_used_error" = "A tecla já está em uso.";
 "active_screen" = "Tela ativa";
@@ -26,5 +26,5 @@
 "clear_alert_comment" = "Você não pode desfazer esta ação.";
 "quit_tooltip" = "Sair do aplicativo.";
 "format_modifiers_config" = "• Selecione com %@ pressionado para copiar, limpar a formatação e colar o item.";
-"accessibility_alert_comment" = "Conceda acesso a este aplicativo em {pane}, localizado em {settings}.\n\nClique + botão, selecione Maccy e ative a caixa de seleção próxima a ele.";
+"accessibility_alert_comment" = "Conceda acesso a este aplicativo em {pane}, localizado em {settings}.\n\nClique + botão, selecione Clipp e ative a caixa de seleção próxima a ele.";
 "system_preferences_name" = "Preferências do Sistema";

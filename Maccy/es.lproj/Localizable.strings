@@ -13,8 +13,8 @@
 "copy_modifiers_config" = "• Para copiar el elemento, seleccionar con %@ presionado.";
 "paste_modifiers_config" = "• Para copiar y pegar el elemento, seleccionar con %@ presionado.";
 "format_modifiers_config" = "• Para copiar, borrar el formato y pegar el elemento el elemento, seleccionar con %@ presionado.";
-"accessibility_alert_message" = "“Maccy” requiere controlar esta computadora mediante las funciones de accesibilidad.";
-"accessibility_alert_comment" = "Otorgar acceso a esta aplicación en {panel}, ubicado en {settings}.\n\nHaga clic en el botón +, seleccionar Maccy y activar la casilla de verificación junto a él.";
+"accessibility_alert_message" = "“Clipp” requiere controlar esta computadora mediante las funciones de accesibilidad.";
+"accessibility_alert_comment" = "Otorgar acceso a esta aplicación en {panel}, ubicado en {settings}.\n\nHaga clic en el botón +, seleccionar Clipp y activar la casilla de verificación junto a él.";
 "accessibility_alert_deny" = "Denegar";
 "accessibility_alert_open" = "Abrir Preferencias del Sistema";
 "clear_alert_message" = "¿Seguro que deseas borrar el historial?";

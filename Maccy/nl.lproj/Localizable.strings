@@ -13,8 +13,8 @@
 "copy_modifiers_config" = "• Selecteer met %@ ingedrukt om item te kopiëren.";
 "paste_modifiers_config" = "• Selecteer met %@ ingedrukt om het item te kopiëren en te plakken.";
 "format_modifiers_config" = "• Selecteer met %@ ingedrukt om te kopiëren, opmaak te wissen en item te plakken.";
-"accessibility_alert_message" = "“Maccy” wil deze computer bedienen met toegankelijkheidsfuncties.";
-"accessibility_alert_comment" = "Verleen toegang tot deze app in {pane}, te vinden in {settings}.\n\nKlik op de + knop, selecteer Maccy en schakel het selectievakje ernaast in.";
+"accessibility_alert_message" = "“Clipp” wil deze computer bedienen met toegankelijkheidsfuncties.";
+"accessibility_alert_comment" = "Verleen toegang tot deze app in {pane}, te vinden in {settings}.\n\nKlik op de + knop, selecteer Clipp en schakel het selectievakje ernaast in.";
 "accessibility_alert_deny" = "Weiger";
 "accessibility_alert_open" = "Open Systeemvoorkeuren";
 "clear_alert_message" = "Weet je zeker dat je de geschiedenis wilt wissen?";

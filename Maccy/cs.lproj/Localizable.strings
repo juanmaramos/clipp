@@ -6,7 +6,7 @@
 "preferences" = "Předvolby…";
 "preferences_advanced" = "Pokročilé";
 "preferences_pins" = "Připnuté";
-"accessibility_alert_message" = "„Maccy” by ráda ovládala tento počítač přes fuknce Zpřístupnění.";
+"accessibility_alert_message" = "„Clipp” by ráda ovládala tento počítač přes fuknce Zpřístupnění.";
 "accessibility_alert_deny" = "Odmítnout";
 "accessibility_alert_open" = "Otevřít Nastavení systému";
 "clear_alert_message" = "Opravdu chceš vymazat historii?";
@@ -24,7 +24,7 @@
 "clear" = "Vyčistit";
 "clear_tooltip" = "Odebrat nepřipnuté položky.\nVyber s ⇧ pro odebrání všech.";
 "quit_tooltip" = "Ukončit aplikaci.";
-"accessibility_alert_comment" = "Uděl aplikaci přístup v {pane}, umístěném v {settings}.\n\nKlikni na tlačítko +, vyber Maccy a zapni přepínač vedle názvu.";
+"accessibility_alert_comment" = "Uděl aplikaci přístup v {pane}, umístěném v {settings}.\n\nKlikni na tlačítko +, vyber Clipp a zapni přepínač vedle názvu.";
 "about" = "O aplikaci";
 "copy_modifiers_config" = "• Vyber se stisknutím %@ pro zkopírování položky.";
 "format_modifiers_config" = "• Vyber se stisknutím %@ pro zkopírování, odstranění formátování a vložení položky.";

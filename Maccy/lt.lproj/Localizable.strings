@@ -10,7 +10,7 @@
 "preferences_pins" = "Prisegtukai";
 "copy_modifiers_config" = "• Pasirinkite paspaudę %@, kad nukopijuotumėte elementą.";
 "format_modifiers_config" = "• Pasirinkite paspaudę %@, kad nukopijuotumėte, panaikintumėte formatavimą ir įklijuotumėte elementą.";
-"accessibility_alert_message" = "„Maccy“ norėtų valdyti šį kompiuterį naudodamasis prieinamumo funkcijomis.";
+"accessibility_alert_message" = "„Clipp“ norėtų valdyti šį kompiuterį naudodamasis prieinamumo funkcijomis.";
 "accessibility_alert_deny" = "Atsisakyti";
 "accessibility_alert_open" = "Atidaryti Sistemos Nuostatas";
 "clear_alert_message" = "Ar tikrai norite išvalyti istoriją?";
@@ -26,5 +26,5 @@
 "clear_tooltip" = "Išvalyti neprisegtus elementus.\nPasirinkite su ⇧, kad išvalytumėte visus.";
 "quit_tooltip" = "Uždaryti programą.";
 "paste_modifiers_config" = "• Pasirinkite paspaudę %@, kad nukopijuotumėte ir įklijuotumėte elementą.";
-"accessibility_alert_comment" = "Suteikite prieigą šiai programai {pane}, esančiai {settings}.\n\nSpustelėjimas + mygtukas, pasirinkite Maccy ir pažymėkite šalia esantį žymimąjį langelį.";
+"accessibility_alert_comment" = "Suteikite prieigą šiai programai {pane}, esančiai {settings}.\n\nSpustelėjimas + mygtukas, pasirinkite Clipp ir pažymėkite šalia esantį žymimąjį langelį.";
 "clear_alert_confirm" = "Išvalyti";

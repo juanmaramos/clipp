@@ -29,7 +29,7 @@
 "ShowMenuIcon" = "顯示選單列圖示";
 "ShowRecentCopyInMenuBar" = "選單列圖示旁顯示目前內容";
 "ShowSearchField" = "顯示搜尋框";
-"ShowTitleBeforeSearchField" = "搜尋列旁顯示 Maccy";
+"ShowTitleBeforeSearchField" = "搜尋列旁顯示 Clipp";
 "ShowFooter" = "顯示底部操作選單";
 "ShowApplicationIcons" = "顯示應用程式圖示";
 "OpenPreferencesWarning" = "⚠️ 隱藏底部選單時，可按 ⌘, (command+comma) 顯示偏好設定。";
