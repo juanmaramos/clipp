@@ -27,6 +27,7 @@
 "ShowSpecialSymbols" = "Show special symbols";
 "ShowSpecialSymbolsTooltip" = "Show newlines, tabs, leading and trailing spaces via special symbols.";
 "ShowMenuIcon" = "Show menu icon";
+"NotifyOnCopy" = "Show notifications when copying";
 "ShowRecentCopyInMenuBar" = "Show recent copy next to menu icon";
 "ShowSearchField" = "Show search field";
 "ShowTitleBeforeSearchField" = "Show title before search field";

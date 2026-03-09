@@ -148,6 +148,10 @@ struct AppearanceSettingsPane: View {
           .controlSize(.small)
         }
 
+        Defaults.Toggle(key: .notifyOnCopy) {
+          Text("NotifyOnCopy", tableName: "AppearanceSettings")
+        }
+
         HStack {
           Defaults.Toggle(key: .showSearch) {
             Text("ShowSearchField", tableName: "AppearanceSettings")

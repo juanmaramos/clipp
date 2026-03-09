@@ -30,9 +30,6 @@ struct GeneralSettingsPane: View {
           action: { updater.checkForUpdates() },
           label: { Text("CheckNow", tableName: "GeneralSettings") }
         )
-        Defaults.Toggle(key: .notifyOnCopy) {
-          Text("NotifyOnCopy", tableName: "GeneralSettings")
-        }
       }
 
       Settings.Section(label: { Text("Open", tableName: "GeneralSettings") }) {
