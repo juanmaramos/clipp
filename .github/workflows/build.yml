@@ -136,8 +136,16 @@ jobs:
           APP_NAME="Clipp.app"
           APP_PATH="$PRODUCT_DIR/$APP_NAME"
 
+          if [ ! -d "$APP_PATH" ]; then
+            echo "❌ App bundle not found at $APP_PATH"
+            exit 1
+          fi
+
           # Create a clean zip
-          ditto -c -k --sequesterRsrc --keepParent "$APP_NAME" "$GITHUB_WORKSPACE/Clipp.zip"
+          (
+            cd "$PRODUCT_DIR"
+            ditto -c -k --sequesterRsrc --keepParent "$APP_NAME" "$GITHUB_WORKSPACE/Clipp.zip"
+          )
 
           # Create DMG
           STAGE_DIR="$RUNNER_TEMP/dmg-staging"
