@@ -2,8 +2,9 @@
 "LaunchAtLogin" = "Launch at login";
 "CheckForUpdates" = "Check for updates automatically";
 "CheckNow" = "Check now";
-"Open" = "Open Clipp";
-"OpenTooltip" = "Show clipboard history and paste items";
+"NotifyOnCopy" = "Show notifications when copying";
+"Open" = "Paste item";
+"OpenTooltip" = "Global shortcut for showing clipboard history and pasting items";
 "Pin" = "Pin Item";
 "PinTooltip" = "Keep item at top permanently";
 "Delete" = "Delete Item";

@@ -2,6 +2,8 @@ import Sparkle
 
 @Observable
 class SoftwareUpdater {
+  static let shared = SoftwareUpdater()
+
   var automaticallyChecksForUpdates = false {
     didSet {
       updater.automaticallyChecksForUpdates = automaticallyChecksForUpdates

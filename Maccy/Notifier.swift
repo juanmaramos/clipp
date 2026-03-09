@@ -1,4 +1,5 @@
 import AppKit
+import Defaults
 import UserNotifications
 
 class Notifier {
@@ -13,6 +14,7 @@ class Notifier {
   }
 
   static func notify(body: String?, sound: NSSound?) {
+    guard Defaults[.notifyOnCopy] else { return }
     guard let body else { return }
 
     authorize()

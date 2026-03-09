@@ -42,9 +42,10 @@ enum PopupPosition: String, CaseIterable, Identifiable, CustomStringConvertible,
       }
       point = NSEvent.mouseLocation
     case .statusItem:
-      if let statusBarButton, let screen = NSScreen.main {
+      if let statusBarButton {
         let rectInWindow = statusBarButton.convert(statusBarButton.bounds, to: nil)
         if let screenRect = statusBarButton.window?.convertToScreen(rectInWindow) {
+          let screen = statusBarButton.window?.screen ?? NSScreen.main
           point = NSPoint(x: screenRect.minX, y: screenRect.minY - size.height)
           return constrainToScreen(point: point, size: size, screen: screen)
         }

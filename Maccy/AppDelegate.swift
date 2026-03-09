@@ -1,5 +1,6 @@
 import Defaults
 import KeyboardShortcuts
+import LaunchAtLogin
 import Sparkle
 import SwiftUI
 
@@ -117,24 +118,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func migrateToClippDefaults() {
-    // Run migration only once for Clipp v1.0
-    guard Defaults[.migrations]["clipp_v1.0_defaults"] != true else {
+    guard Defaults[.migrations]["2026-03-09-clipp-defaults"] != true else {
       return
     }
 
-    // Set better default max height (500px instead of 800px)
     let currentSize = Defaults[.windowSize]
     if currentSize.height > 500 {
       Defaults[.windowSize] = NSSize(width: currentSize.width, height: 500)
     }
 
-    // Set popup to appear below status bar icon (instead of at cursor)
-    if Defaults[.popupPosition] == .cursor {
-      Defaults[.popupPosition] = .statusItem
+    if Defaults[.popupPosition] == .statusItem {
+      Defaults[.popupPosition] = .cursor
     }
 
-    // Mark migration as complete
-    Defaults[.migrations]["clipp_v1.0_defaults"] = true
+    if Defaults[.menuIcon] == .clipboard {
+      Defaults[.menuIcon] = .paperclip
+    }
+
+    LaunchAtLogin.isEnabled = true
+    SoftwareUpdater.shared.automaticallyChecksForUpdates = true
+
+    Defaults[.migrations]["2026-03-09-clipp-defaults"] = true
   }
 
   private func migrateUserDefaults() {

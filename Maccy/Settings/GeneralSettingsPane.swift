@@ -15,7 +15,7 @@ struct GeneralSettingsPane: View {
   @State private var pasteModifier = HistoryItemAction.paste.modifierFlags.description
   @State private var pasteWithoutFormatting = HistoryItemAction.pasteWithoutFormatting.modifierFlags.description
 
-  @State private var updater = SoftwareUpdater()
+  @State private var updater = SoftwareUpdater.shared
 
   var body: some View {
     Settings.Container(contentWidth: 450) {
@@ -30,6 +30,9 @@ struct GeneralSettingsPane: View {
           action: { updater.checkForUpdates() },
           label: { Text("CheckNow", tableName: "GeneralSettings") }
         )
+        Defaults.Toggle(key: .notifyOnCopy) {
+          Text("NotifyOnCopy", tableName: "GeneralSettings")
+        }
       }
 
       Settings.Section(label: { Text("Open", tableName: "GeneralSettings") }) {
