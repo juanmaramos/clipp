@@ -168,15 +168,32 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
-          SIGN_UPDATE="/Users/runner/Library/Developer/Xcode/DerivedData/Maccy-*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
-          SIGN_UPDATE=$(ls $SIGN_UPDATE 2>/dev/null | head -1)
+          SIGN_UPDATE=""
+
+          # Prefer the tool from the same derived data path used by xcodebuild.
+          while IFS= read -r candidate; do
+            if [ -x "$candidate" ]; then
+              SIGN_UPDATE="$candidate"
+              break
+            fi
+          done < <(find build/SourcePackages -type f -name sign_update 2>/dev/null)
+
+          # Backward-compatible fallback for legacy DerivedData layout.
+          if [ -z "$SIGN_UPDATE" ]; then
+            SIGN_UPDATE=$(ls /Users/runner/Library/Developer/Xcode/DerivedData/*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update 2>/dev/null | head -1)
+          fi
 
           if [ -z "$SIGN_UPDATE" ]; then
             echo "sign_update not found in DerivedData, downloading Sparkle tools..."
             SPARKLE_VERSION="2.7.5"
-            curl -L "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" -o sparkle.tar.xz
+            curl -fL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" -o sparkle.tar.xz
             mkdir -p sparkle_tools && tar -xf sparkle.tar.xz -C sparkle_tools
-            SIGN_UPDATE="sparkle_tools/bin/sign_update"
+            SIGN_UPDATE=$(find sparkle_tools -type f -name sign_update | head -1)
+          fi
+
+          if [ -z "$SIGN_UPDATE" ] || [ ! -x "$SIGN_UPDATE" ]; then
+            echo "❌ Unable to locate executable sign_update tool"
+            exit 1
           fi
 
           # Write private key to temp file
@@ -186,7 +203,7 @@ jobs:
           rm /tmp/sparkle_private_key
 
           echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
-          echo "✅ Sparkle signature: $SIGNATURE"
+          echo "✅ Sparkle signature generated"
 
       - name: Prepare Release Notes
         if: startsWith(github.ref, 'refs/tags/')
