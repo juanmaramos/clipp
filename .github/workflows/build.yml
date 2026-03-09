@@ -2,12 +2,19 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+    paths-ignore:
+      - appcast.xml
   workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: macos-latest
     env:
       SIGNING_IDENTITY: Developer ID Application
@@ -18,11 +25,40 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
+
+      - name: Determine Release Metadata
+        run: |
+          MARKETING_VERSION=$(
+            xcodebuild \
+              -project Maccy.xcodeproj \
+              -scheme Clipp \
+              -configuration Release \
+              -showBuildSettings | awk -F ' = ' '/MARKETING_VERSION = / {print $2; exit}'
+          )
+
+          if [ -z "$MARKETING_VERSION" ]; then
+            echo "❌ Unable to determine MARKETING_VERSION"
+            exit 1
+          fi
+
+          BUILD_VERSION="${GITHUB_RUN_NUMBER}"
+          RELEASE_TAG="v${MARKETING_VERSION}-build.${BUILD_VERSION}"
+          RELEASE_NAME="Clipp ${MARKETING_VERSION} (build ${BUILD_VERSION})"
+
+          echo "MARKETING_VERSION=$MARKETING_VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_VERSION=$BUILD_VERSION" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+          echo "RELEASE_NAME=$RELEASE_NAME" >> "$GITHUB_ENV"
+
+          echo "📌 Release tag: $RELEASE_TAG"
+          echo "📌 App version: $MARKETING_VERSION ($BUILD_VERSION)"
 
       - name: Import Code Signing Certificate
         env:
@@ -52,6 +88,7 @@ jobs:
             -scheme Clipp \
             -configuration Release \
             -derivedDataPath build \
+            CURRENT_PROJECT_VERSION="$BUILD_VERSION" \
             CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="$TEAM_ID" \
@@ -160,17 +197,7 @@ jobs:
             "$GITHUB_WORKSPACE/Clipp.dmg"
           rm -rf "$STAGE_DIR"
 
-          cd $GITHUB_WORKSPACE
-
-          # Get version from tag or use "dev"
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          else
-            VERSION="dev-$(git rev-parse --short HEAD)"
-          fi
-
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "📦 Created Clipp.zip and Clipp.dmg (Version: $VERSION)"
+          echo "📦 Created Clipp.zip and Clipp.dmg for $RELEASE_NAME"
 
           # Calculate checksums
           shasum -a 256 Clipp.zip > Clipp.zip.sha256
@@ -184,7 +211,7 @@ jobs:
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Clipp-${{ env.VERSION }}
+          name: Clipp-${{ env.RELEASE_TAG }}
           path: |
             Clipp.zip
             Clipp.dmg
@@ -233,14 +260,32 @@ jobs:
           echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
           echo "✅ Sparkle signature generated"
 
+      - name: Create Release Tag
+        run: |
+          git fetch --tags --force
+
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            TAG_COMMIT=$(git rev-list -n 1 "$RELEASE_TAG")
+            if [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
+              echo "❌ Tag $RELEASE_TAG already exists on $TAG_COMMIT"
+              exit 1
+            fi
+
+            echo "ℹ️ Tag $RELEASE_TAG already points to $GITHUB_SHA"
+            exit 0
+          fi
+
+          git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "$RELEASE_NAME"
+          git push origin "$RELEASE_TAG"
+          echo "✅ Created tag $RELEASE_TAG"
+
       - name: Prepare Release Notes
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           {
             echo "RELEASE_BODY<<EOF"
-            echo "## Clipp ${VERSION}"
+            echo "## ${RELEASE_NAME}"
             echo
             echo 'Download `Clipp.zip`, extract, and move `Clipp.app` to your Applications folder.'
             echo
@@ -258,9 +303,11 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_NAME }}
+          target_commitish: ${{ github.sha }}
           files: |
             Clipp.zip
             Clipp.dmg
@@ -273,7 +320,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Appcast
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
@@ -281,8 +327,8 @@ jobs:
           BUILD_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Contents/Info.plist")
           ZIP_LENGTH=$(stat -f%z Clipp.zip)
           PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
-          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/Clipp.zip"
-          RELEASE_NOTES_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/v${VERSION}"
+          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/Clipp.zip"
+          RELEASE_NOTES_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}"
 
           cat > appcast.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
@@ -293,7 +339,7 @@ jobs:
               <description>Most recent changes with links to updates.</description>
               <language>en</language>
               <item>
-                <title>${VERSION}</title>
+                <title>${RELEASE_NAME}</title>
                 <description>
                   <![CDATA[
                     <ul>
@@ -307,7 +353,7 @@ jobs:
                 <enclosure
                   url="${DOWNLOAD_URL}"
                   sparkle:version="${BUILD_VERSION}"
-                  sparkle:shortVersionString="${VERSION}"
+                  sparkle:shortVersionString="${MARKETING_VERSION}"
                   sparkle:edSignature="${SPARKLE_SIGNATURE}"
                   length="${ZIP_LENGTH}"
                   type="application/octet-stream"
@@ -320,7 +366,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add appcast.xml
-          git commit -m "Update appcast for v${VERSION}"
+          if git diff --cached --quiet; then
+            echo "ℹ️ appcast.xml already up to date"
+            exit 0
+          fi
+
+          git commit -m "Update appcast for ${RELEASE_TAG} [skip ci]"
           git fetch origin "${DEFAULT_BRANCH}"
           git rebase "origin/${DEFAULT_BRANCH}"
           git push origin "HEAD:${DEFAULT_BRANCH}"
