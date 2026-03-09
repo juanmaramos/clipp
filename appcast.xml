@@ -6,7 +6,7 @@
     <description>Most recent changes with links to updates.</description>
     <language>en</language>
     <item>
-      <title>2.6.1</title>
+      <title>Clipp 2.6.1 (build 12)</title>
       <description>
         <![CDATA[
           <ul>
@@ -14,15 +14,15 @@
           </ul>
         ]]>
       </description>
-      <pubDate>2026-03-08</pubDate>
-      <releaseNotesLink>https://github.com/juanmaramos/clipp/releases/tag/v2.6.1</releaseNotesLink>
+      <pubDate>Mon, 09 Mar 2026 16:18:33 +0000</pubDate>
+      <releaseNotesLink>https://github.com/juanmaramos/clipp/releases/tag/v2.6.1-build.12</releaseNotesLink>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <enclosure
-        url="https://github.com/juanmaramos/clipp/releases/download/v2.6.1/Clipp.zip"
-        sparkle:version="60"
+        url="https://github.com/juanmaramos/clipp/releases/download/v2.6.1-build.12/Clipp.zip"
+        sparkle:version="12"
         sparkle:shortVersionString="2.6.1"
-        sparkle:edSignature="REPLACE_WITH_EDSIGNATURE"
-        length="0"
+        sparkle:edSignature="sparkle:edSignature="+R6Mgp5omwqh2J8sxfZneX1k6pf5qwyfLTgYGXP1jNYGVBmNPcTJ3vvwmhs63N7Xjnv347OOnrW9is3Idt6+Bw==" length="4617323""
+        length="4617323"
         type="application/octet-stream"
       />
     </item>
