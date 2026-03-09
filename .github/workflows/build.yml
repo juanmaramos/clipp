@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      SIGNING_IDENTITY: Developer ID Application
 
     permissions:
       contents: write
@@ -50,7 +52,7 @@ jobs:
             -scheme Clipp \
             -configuration Release \
             -derivedDataPath build \
-            CODE_SIGN_IDENTITY="Developer ID Application" \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="$TEAM_ID" \
             PROVISIONING_PROFILE_SPECIFIER="" \
@@ -66,9 +68,35 @@ jobs:
           TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
           APP_PATH="build/Build/Products/Release/Clipp.app"
+          APP_BINARY="$APP_PATH/Contents/MacOS/Clipp"
+          SPARKLE_FRAMEWORK="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+
+          # Re-sign Sparkle internals to ensure every nested binary has
+          # hardened runtime and secure timestamp with Developer ID identity.
+          if [ -d "$SPARKLE_FRAMEWORK" ]; then
+            while IFS= read -r executable; do
+              codesign --force --sign "$SIGNING_IDENTITY" --options runtime --timestamp "$executable"
+            done < <(find "$SPARKLE_FRAMEWORK" -type f -perm -111 | sort -r)
+
+            while IFS= read -r bundle; do
+              codesign --force --sign "$SIGNING_IDENTITY" --options runtime --timestamp "$bundle"
+            done < <(find "$SPARKLE_FRAMEWORK" -type d \( -name "*.xpc" -o -name "*.app" -o -name "*.framework" \) | sort -r)
+          fi
+
+          # Re-sign app bundle last (inside-out order).
+          codesign --force --sign "$SIGNING_IDENTITY" --options runtime --timestamp \
+            --entitlements Maccy/Maccy.entitlements \
+            "$APP_PATH"
+
+          # Release notarization builds must not include debug entitlement.
+          ENTITLEMENTS=$(codesign -d --entitlements :- "$APP_BINARY" 2>/dev/null || true)
+          if echo "$ENTITLEMENTS" | grep -q "<key>com.apple.security.get-task-allow</key>"; then
+            echo "❌ com.apple.security.get-task-allow found in release app signature"
+            exit 1
+          fi
 
           # Verify the app is properly signed
-          codesign --verify --deep --strict "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           echo "✅ Code signature verified"
 
           # Zip for notarization (ditto preserves extended attributes)
@@ -79,13 +107,28 @@ jobs:
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$TEAM_ID" \
-            --wait
+            --wait \
+            --output-format json > notary-result.json
+
+          SUBMISSION_ID=$(/usr/bin/plutil -extract id raw -o - notary-result.json)
+          NOTARY_STATUS=$(/usr/bin/plutil -extract status raw -o - notary-result.json)
+          echo "Notary submission: $SUBMISSION_ID ($NOTARY_STATUS)"
+
+          if [ "$NOTARY_STATUS" != "Accepted" ]; then
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$TEAM_ID" > notary-log.json || true
+            cat notary-log.json || true
+            echo "❌ Notarization rejected"
+            exit 1
+          fi
 
           # Staple the notarization ticket to the app bundle
           xcrun stapler staple "$APP_PATH"
           echo "✅ Notarization complete and ticket stapled"
 
-          rm Clipp-notarize.zip
+          rm Clipp-notarize.zip notary-result.json notary-log.json 2>/dev/null || true
 
       - name: Create Distribution Package
         run: |
