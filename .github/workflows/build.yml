@@ -254,10 +254,21 @@ jobs:
           # Write private key to temp file
           echo "$SPARKLE_PRIVATE_KEY" > /tmp/sparkle_private_key
 
-          SIGNATURE=$("$SIGN_UPDATE" Clipp.zip --account clipp -f /tmp/sparkle_private_key 2>/dev/null || "$SIGN_UPDATE" Clipp.zip -f /tmp/sparkle_private_key)
+          SIGNATURE_OUTPUT=$("$SIGN_UPDATE" Clipp.zip --account clipp -f /tmp/sparkle_private_key 2>/dev/null || "$SIGN_UPDATE" Clipp.zip -f /tmp/sparkle_private_key)
           rm /tmp/sparkle_private_key
 
-          echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
+          SPARKLE_SIGNATURE=$(printf '%s\n' "$SIGNATURE_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+          if [ -z "$SPARKLE_SIGNATURE" ]; then
+            SPARKLE_SIGNATURE=$(printf '%s\n' "$SIGNATURE_OUTPUT" | awk 'NF { print $1; exit }')
+          fi
+
+          if [ -z "$SPARKLE_SIGNATURE" ]; then
+            echo "❌ Unable to parse Sparkle signature"
+            printf '%s\n' "$SIGNATURE_OUTPUT"
+            exit 1
+          fi
+
+          echo "SPARKLE_SIGNATURE=$SPARKLE_SIGNATURE" >> $GITHUB_ENV
           echo "✅ Sparkle signature generated"
 
       - name: Create Release Tag
