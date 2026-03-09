@@ -17,7 +17,7 @@ extension Defaults.Keys {
   static let enabledPasteboardTypes = Key<Set<NSPasteboard.PasteboardType>>(
     "enabledPasteboardTypes", default: Set(StorageType.all.types)
   )
-  static let highlightMatch = Key<HighlightMatch>("highlightMatch", default: .bold)
+  static let highlightMatch = Key<HighlightMatch>("highlightMatch", default: .color)
   static let ignoreAllAppsExceptListed = Key<Bool>("ignoreAllAppsExceptListed", default: false)
   static let ignoreEvents = Key<Bool>("ignoreEvents", default: false)
   static let ignoreOnlyNextEvent = Key<Bool>("ignoreOnlyNextEvent", default: false)

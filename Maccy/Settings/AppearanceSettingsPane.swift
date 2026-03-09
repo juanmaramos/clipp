@@ -4,6 +4,8 @@ import Defaults
 import Settings
 
 struct AppearanceSettingsPane: View {
+  private static let availableHighlightMatches: [HighlightMatch] = [.color, .bold]
+
   @Default(.popupPosition) private var popupAt
   @Default(.popupScreen) private var popupScreen
   @Default(.pinTo) private var pinTo
@@ -114,8 +116,8 @@ struct AppearanceSettingsPane: View {
         bottomDivider: true,
         label: { Text("HighlightMatches", tableName: "AppearanceSettings") }
       ) {
-        Picker("", selection: $highlightMatch) {
-          ForEach(HighlightMatch.allCases) { match in
+        Picker("", selection: highlightMatchBinding) {
+          ForEach(Self.availableHighlightMatches) { match in
             Text(match.description)
           }
         }
@@ -146,9 +148,6 @@ struct AppearanceSettingsPane: View {
           .controlSize(.small)
         }
 
-        Defaults.Toggle(key: .showRecentCopyInMenuBar) {
-          Text("ShowRecentCopyInMenuBar", tableName: "AppearanceSettings")
-        }
         HStack {
           Defaults.Toggle(key: .showSearch) {
             Text("ShowSearchField", tableName: "AppearanceSettings")
@@ -217,6 +216,14 @@ struct AppearanceSettingsPane: View {
       return String(localized: "ActiveScreen", table: "AppearanceSettings")
     case _:
       return screens[screenIndex - 1].localizedName
+    }
+  }
+
+  private var highlightMatchBinding: Binding<HighlightMatch> {
+    Binding {
+      Self.availableHighlightMatches.contains(highlightMatch) ? highlightMatch : .color
+    } set: {
+      highlightMatch = $0
     }
   }
 }

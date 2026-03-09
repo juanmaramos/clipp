@@ -159,7 +159,7 @@ For code signing and notarization setup, see [DISTRIBUTION.md](./DISTRIBUTION.md
 
 ## Credits
 
-Clipp is a fork of [Maccy](https://github.com/p0deje/Maccy) by Alex Rodionov.
+Clipp is a fork of [Maccy](https://github.com/p0deje/Maccy).
 
 ## License
 

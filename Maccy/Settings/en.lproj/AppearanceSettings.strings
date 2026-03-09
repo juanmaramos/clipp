@@ -23,7 +23,7 @@
 "HighlightMatchBold" = "Bold";
 "HighlightMatchItalic" = "Italic";
 "HighlightMatchUnderline" = "Underline";
-"HighlightMatchesTooltip" = "Change the highlighting style for search matches.\nDefault: Bold.";
+"HighlightMatchesTooltip" = "Change the highlighting style for search matches.\nDefault: Color.";
 "ShowSpecialSymbols" = "Show special symbols";
 "ShowSpecialSymbolsTooltip" = "Show newlines, tabs, leading and trailing spaces via special symbols.";
 "ShowMenuIcon" = "Show menu icon";

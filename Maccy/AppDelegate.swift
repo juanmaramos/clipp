@@ -153,6 +153,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       Defaults[.migrations]["2024-07-01-version-2"] = true
     }
 
+    if Defaults[.migrations]["2026-03-09-highlight-match-options"] != true {
+      if Defaults[.highlightMatch] == .italic || Defaults[.highlightMatch] == .underline {
+        Defaults[.highlightMatch] = .color
+      }
+
+      Defaults[.migrations]["2026-03-09-highlight-match-options"] = true
+    }
+
     // The following defaults are not used in Maccy 2.x
     // and should be removed in 3.x.
     // - LaunchAtLogin__hasMigrated
