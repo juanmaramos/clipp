@@ -132,10 +132,25 @@ jobs:
 
       - name: Create Distribution Package
         run: |
-          cd build/Build/Products/Release
+          PRODUCT_DIR="build/Build/Products/Release"
+          APP_NAME="Clipp.app"
+          APP_PATH="$PRODUCT_DIR/$APP_NAME"
 
           # Create a clean zip
-          ditto -c -k --sequesterRsrc --keepParent Clipp.app $GITHUB_WORKSPACE/Clipp.zip
+          ditto -c -k --sequesterRsrc --keepParent "$APP_NAME" "$GITHUB_WORKSPACE/Clipp.zip"
+
+          # Create DMG
+          STAGE_DIR="$RUNNER_TEMP/dmg-staging"
+          rm -rf "$STAGE_DIR"
+          mkdir -p "$STAGE_DIR"
+          cp -R "$APP_PATH" "$STAGE_DIR/"
+          ln -s /Applications "$STAGE_DIR/Applications"
+          hdiutil create -volname "Clipp" \
+            -srcfolder "$STAGE_DIR" \
+            -ov \
+            -format UDZO \
+            "$GITHUB_WORKSPACE/Clipp.dmg"
+          rm -rf "$STAGE_DIR"
 
           cd $GITHUB_WORKSPACE
 
@@ -147,13 +162,16 @@ jobs:
           fi
 
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "📦 Created Clipp.zip (Version: $VERSION)"
+          echo "📦 Created Clipp.zip and Clipp.dmg (Version: $VERSION)"
 
-          # Calculate checksum
+          # Calculate checksums
           shasum -a 256 Clipp.zip > Clipp.zip.sha256
+          shasum -a 256 Clipp.dmg > Clipp.dmg.sha256
 
           ls -lh Clipp.zip
+          ls -lh Clipp.dmg
           cat Clipp.zip.sha256
+          cat Clipp.dmg.sha256
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
@@ -161,7 +179,9 @@ jobs:
           name: Clipp-${{ env.VERSION }}
           path: |
             Clipp.zip
+            Clipp.dmg
             Clipp.zip.sha256
+            Clipp.dmg.sha256
           retention-days: 30
 
       - name: Sign Update for Sparkle
@@ -220,6 +240,7 @@ jobs:
             echo
             echo '```'
             cat Clipp.zip.sha256
+            cat Clipp.dmg.sha256
             echo '```'
             echo
             echo "### Changes"
@@ -234,7 +255,9 @@ jobs:
         with:
           files: |
             Clipp.zip
+            Clipp.dmg
             Clipp.zip.sha256
+            Clipp.dmg.sha256
           body: ${{ env.RELEASE_BODY }}
           draft: false
           prerelease: false

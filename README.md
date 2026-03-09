@@ -2,7 +2,7 @@
 
 A lightweight clipboard manager for macOS with instant paste shortcuts.
 
-**Clipp** is a fork of [Maccy](https://github.com/p0deje/Maccy) with enhanced features and improved UX.
+**Clipp** is an actively maintained clipboard manager for macOS, based on [Maccy](https://github.com/p0deje/Maccy), with enhanced features and improved UX.
 
 ## Features
 
@@ -19,7 +19,20 @@ macOS Sonoma 14 or higher
 
 ## Install
 
-Download the latest version from the [releases](https://github.com/juanmaramos/clipp/releases) page.
+Download the latest version (`Clipp.dmg` or `Clipp.zip`) from the [releases](https://github.com/juanmaramos/clipp/releases) page.
+
+## Why Clipp
+
+Clipp is a fast, open-source alternative for people looking for a modern macOS clipboard history app.
+
+If you searched for:
+- CopyClip alternative
+- Paste app alternative
+- Maccy alternative
+- macOS clipboard manager open source
+- clipboard history manager for Mac
+
+you are in the right place.
 
 ## Usage
 
@@ -112,6 +125,12 @@ open Maccy.xcodeproj
 
 Build with Xcode 15+ and Swift 5.9+
 
+## Support
+
+If Clipp saves you time, you can support development:
+
+- Buy Me a Coffee: https://buymeacoffee.com/jmramos86k
+
 ## Releasing
 
 To create a new release:
@@ -129,8 +148,8 @@ git push origin v1.0.0
 
 GitHub Actions will automatically:
 1. Build the app
-2. Create a .zip package
-3. Generate SHA-256 checksum
+2. Create `.zip` and `.dmg` packages
+3. Generate SHA-256 checksums
 4. Create a GitHub Release
 5. Attach downloadable files
 
