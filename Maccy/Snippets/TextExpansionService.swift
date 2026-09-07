@@ -134,12 +134,11 @@ final class TextExpansionService {
       matcher.reset(); return unchanged
     }
     let text = String(utf16CodeUnits: characters, count: length)
-    guard var match = matcher.append(text, snippets: SnippetLibrary.shared.definitions) else { return unchanged }
+    guard let match = matcher.append(text, snippets: SnippetLibrary.shared.definitions) else { return unchanged }
     // Keep Space away from the target's autocorrection until the abbreviation is replaced.
     let delimiterEvent = match.snippet.waitsForSpace ? event.copy() : nil
     if match.snippet.waitsForSpace {
       guard delimiterEvent != nil else { return unchanged }
-      match.typedText.removeLast()
     }
     isReplacing = true
     transactionTask = Task {
@@ -208,10 +207,12 @@ final class TextExpansionService {
 
   static func replacementRange(value: String, caret: Int, match: SnippetMatcher.Match) -> CFRange? {
     let string = value as NSString
-    let length = match.typedText.utf16.count
+    // The delimiter is held by the event tap and has not reached the editor.
+    let typedText = String(match.typedText.dropLast(match.suffix.count))
+    let length = typedText.utf16.count
     guard caret >= length, caret <= string.length else { return nil }
     let range = NSRange(location: caret - length, length: length)
-    guard string.substring(with: range) == match.typedText else { return nil }
+    guard string.substring(with: range) == typedText else { return nil }
     if match.snippet.requiresWordBoundary, range.location > 0 {
       let prefix = string.substring(to: range.location)
       guard prefix.last?.isWhitespace == true else { return nil }

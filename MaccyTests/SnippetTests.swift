@@ -88,6 +88,16 @@ final class SnippetTests: XCTestCase {
     XCTAssertNil(TextExpansionService.replacementRange(value: ";em", caret: 99, match: match))
   }
 
+  func testSpaceTriggerVerifiesAbbreviationBeforeDelimiterReachesEditor() throws {
+    var matcher = SnippetMatcher()
+    let snippet = SnippetDefinition(name: "Date", abbreviation: "ddate", content: "{{date}}", isEnabled: true, waitsForSpace: true)
+    let match = try XCTUnwrap(matcher.append("ddate ", snippets: [snippet]))
+    let range = TextExpansionService.replacementRange(value: "ddate", caret: 5, match: match)
+    XCTAssertEqual(range?.length, 5)
+    XCTAssertEqual(match.suffix, " ")
+    XCTAssertNil(TextExpansionService.replacementRange(value: "Date", caret: 4, match: match))
+  }
+
   func testClipboardExpansionStopsBeforeCreatingOversizedText() {
     var snippet = email
     snippet.content = "{{clipboard}}{{clipboard}}"

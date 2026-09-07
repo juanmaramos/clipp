@@ -104,17 +104,6 @@ final class StatisticsTests: XCTestCase {
     XCTAssertTrue(clipboard.contains(HistoryItem(contents: [])))
   }
 
-  func testSpaceTriggerVerifiesAbbreviationBeforeDelimiterReachesEditor() throws {
-    var matcher = SnippetMatcher()
-    let snippet = SnippetDefinition(name: "Date", abbreviation: "ddate", content: "{{date}}", isEnabled: true, waitsForSpace: true)
-    var match = try XCTUnwrap(matcher.append("ddate ", snippets: [snippet]))
-    match.typedText.removeLast()
-    let range = TextExpansionService.replacementRange(value: "ddate", caret: 5, match: match)
-    XCTAssertEqual(range?.length, 5)
-    XCTAssertEqual(match.suffix, " ")
-    XCTAssertNil(TextExpansionService.replacementRange(value: "Date", caret: 4, match: match))
-  }
-
   func testTimeDisplayAvoidsFalsePrecision() {
     XCTAssertEqual(StatisticsSettingsPane.duration(0), "0 min")
     XCTAssertEqual(StatisticsSettingsPane.duration(1.2), "<1 min")
