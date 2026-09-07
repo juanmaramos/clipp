@@ -1,132 +1,107 @@
 # Clipp
 
-A lightweight clipboard manager for macOS with instant paste shortcuts.
+Clipboard history and text expansion for macOS. Find something you copied, paste it with a shortcut, or turn a short abbreviation into text you use often.
 
-**Clipp** is an actively maintained clipboard manager for macOS, based on [Maccy](https://github.com/p0deje/Maccy), with enhanced features and improved UX.
+Clipp is free, open source, and based on [Maccy](https://github.com/p0deje/Maccy). It runs locally on **macOS Sonoma 14 or later**, with universal releases for Apple Silicon and Intel.
+
+![Clipp’s Snippets settings, showing a date abbreviation, date and time formats, and optional expansion feedback](docs/images/snippets.jpg)
 
 ## Features
 
-* **Quick selection** - Press `⌘1`–`⌘9` to activate a visible clipboard item; plain numbers search
-* **Text expansion** - Create personal snippets with typed shortcuts, date/time fields, and local storage
-* **Keyboard-first** - Navigate with arrows, search, and select without touching the mouse
-* **Lightweight and fast** - Native SwiftUI with minimal resource usage
-* **Secure and private** - All data stays local, no cloud sync
-* **Modern UI** - Rich previews for images, colors, and formatted text
-* **Open source and free** - MIT licensed
-
-## Requirements
-
-macOS Sonoma 14 or higher
+- **Clipboard history:** search text, images, and files; pin items you want to keep.
+- **Quick selection:** `⌘1`–`⌘9` activates visible results. Plain numbers go into search.
+- **Text expansion:** user-defined abbreviations, reusable snippets, and configurable date/time fields.
+- **Time saved:** local activity counts and adjustable estimates, with a clear explanation of the assumptions.
+- **Native controls:** keyboard navigation, image previews, optional expansion sound and visual feedback.
+- **Local storage:** no account or cloud sync. Clipboard history, snippets, and statistics stay on your Mac.
 
 ## Install
 
-Download the latest version (`Clipp.dmg` or `Clipp.zip`) from the [releases](https://github.com/juanmaramos/clipp/releases) page.
+Download `Clipp.dmg` or `Clipp.zip` from the [latest release](https://github.com/juanmaramos/clipp/releases/latest), then move `Clipp.app` to Applications and open it.
 
-Or install through Homebrew:
+Or use the custom Homebrew tap:
 
 ```sh
 brew tap juanmaramos/tap https://github.com/juanmaramos/clipp.git
 brew install --cask juanmaramos/tap/clipp
 ```
 
-The tap tracks published releases, not unbuilt source changes.
+The cask installs the same signed, notarized app as the release download and follows published releases.
 
+### Updates
 
-## Why Clipp
+Use **Settings → General → Check now**, or enable **Check for updates automatically**. Release builds use Sparkle to install updates; you do not need to visit GitHub for each version.
 
-Clipp is a fast, open-source alternative for people looking for a modern macOS clipboard history app.
+To update through Homebrew:
 
-If you searched for:
-- CopyClip alternative
-- Paste app alternative
-- Maccy alternative
-- macOS clipboard manager open source
-- clipboard history manager for Mac
-
-you are in the right place.
-
-## Usage
-
-### Basic Operations
-
-1. Press <kbd>⇧</kbd> + <kbd>⌘</kbd> + <kbd>V</kbd> to open Clipp
-2. **Quick selection**: Press `⌘1`–`⌘9` to activate that visible result
-3. **Navigate**: Use arrow keys or type to search
-4. Press <kbd>Enter</kbd> to paste the selected item
-5. Press <kbd>Esc</kbd> to close
-
-### Keyboard Shortcuts
-
-| Action | Shortcut |
-|--------|----------|
-| Open Clipp | <kbd>⇧⌘V</kbd> |
-| Activate result 1–9 | `⌘1`–`⌘9` |
-| Navigate | <kbd>↑</kbd> <kbd>↓</kbd> |
-| Search | Start typing |
-| Paste selected | <kbd>Enter</kbd> |
-| Pin item | <kbd>⌥P</kbd> |
-| Delete item | <kbd>⌥⌫</kbd> |
-| Clear history | <kbd>⌥⌘⌫</kbd> |
-| Preferences | <kbd>⌘,</kbd> |
-| Quit | <kbd>⌘Q</kbd> |
-
-### Advanced Features
-
-**Pin Important Items**
-- Press <kbd>⌥P</kbd> on any item to keep it at the top permanently
-- Pinned items won't be removed when history fills up
-- Great for frequently used snippets
-
-**Search**
-- Start typing to filter items instantly
-- Supports fuzzy search mode in preferences
-- Search works across all clipboard history
-
-**Paste Automatically**
-- Enable "Paste automatically" in Preferences → General
-- Selecting an item will paste it immediately
-- No need to press <kbd>⌘V</kbd> after selection
-
-## Configuration
-
-### Ignore Sensitive Data
-
-Temporarily disable clipboard tracking:
 ```sh
-defaults write org.p0deje.Maccy ignoreEvents true
-# Copy sensitive data
-defaults write org.p0deje.Maccy ignoreEvents false
+brew update
+brew upgrade --cask --greedy juanmaramos/tap/clipp
 ```
 
-Or click the menu bar icon with <kbd>⌥</kbd> pressed.
+`--greedy` includes apps that have their own updater. Older builds with an outdated update feed can be replaced with the latest download from GitHub Releases.
 
-### Ignore Specific Apps
+## Use clipboard history
 
-Add apps to the ignore list in Preferences → Ignore → Applications.
+1. Press **⇧⌘C** to open the picker. This is the default; existing custom shortcuts are preserved.
+2. Type to search, then use the arrow keys and Return, or press **⌘1–⌘9** to activate a visible result.
+3. New installations paste the selected item as plain text. Change this in **Settings → General → When selecting an item** and **Text formatting**.
 
-### Custom Keyboard Shortcut
+Allow Clipp in **System Settings → Privacy & Security → Accessibility** for automatic pasting. Without that permission, selected items are copied for you to paste with **⌘V**.
 
-Change the main shortcut in Settings → General → Open clipboard history.
+| Action | Default shortcut |
+| --- | --- |
+| Open clipboard history | ⇧⌘C |
+| Activate visible result 1–9 | ⌘1–⌘9 |
+| Navigate / search | ↑ ↓ / start typing |
+| Activate selected result | Return |
+| Copy selected result | ⌥Return |
+| Pin / unpin item | ⌥P |
+| Delete item | ⌥⌫ |
+| Clear unpinned history | ⌥⌘⌫ |
+| Clear history including pins | ⇧⌥⌘⌫ |
+| Open settings | ⌘, |
+| Close picker | Esc |
 
-## FAQ
+Change the picker shortcut in **Settings → General → Open clipboard history**. Clearing clipboard history keeps the snippet library.
 
-### Why doesn't auto-paste work?
+## Snippets and typed shortcuts
 
-1. Enable "Paste automatically" in Preferences → General
-2. Grant Accessibility permissions: System Settings → Privacy & Security → Accessibility
-3. Add Clipp to the list and enable it
+Open **Settings → Snippets**. Create a snippet, or choose **Add examples…** from the library’s More menu.
 
-### How do I change the menu bar icon?
+| Example | Expansion |
+| --- | --- |
+| `ddate` followed by Space | Today’s date, with the Space preserved |
+| `ttime` followed by Space | Current time |
+| `;stamp` | Current date and time, expanded immediately |
+| `;em` | Your email address after you edit and enable the example |
+| `;phone` | Your phone number after you edit and enable the example |
 
-Preferences → Appearance → Menu Bar Icon
+Choose your own abbreviation and whether it expands immediately or after Space. Configure date and time presets, relative days, or custom formats, locale, and time zone. Supported fields are `{{date}}`, `{{time}}`, `{{datetime}}`, and `{{clipboard}}`; clipboard text is inserted literally, never evaluated as a script.
 
-Choose from: Clipboard, Scissors, or Paperclip
+Turn on **Expand typed shortcuts** and allow Accessibility. Grant **Input Monitoring** only if Clipp’s status asks for it. Password fields, secure input, excluded apps, input-method composition, and unsupported text fields are skipped.
 
-### How do I clear all history?
+Use **Try this shortcut** to preview a draft inside settings. Use the picker’s **Snippets** filter to insert a snippet manually, including one whose automatic shortcut is disabled. Personal example placeholders start disabled.
 
-Press <kbd>⇧⌥⌘⌫</kbd> or select "Clear all" from the footer menu with <kbd>⌥</kbd> held.
+Typed expansion preserves the previous clipboard unless something newer is copied during insertion. **Expansion feedback** offers a subtle highlight, a badge, or no visual feedback, plus an optional soft pop. Undo behavior and text-field support depend on the destination app.
 
-## Building from Source
+## Time saved
+
+Open **Settings → Time saved** for clipboard reuses, confirmed typed expansions, characters avoided, and estimated savings for today, 7 days, 30 days, or all recorded time.
+
+The defaults are **50 words/minute** and an assumed **5 seconds per clipboard reuse**. Both are adjustable in **How we calculate this**; set clipboard seconds to 0 to exclude that estimate. These are estimates of effort avoided, not measured productivity or comparisons with other users.
+
+Only daily counts are stored, starting with this version. Statistics contain no clipboard text, app names, or typing history, and can be paused or reset. [Read the formulas, sources, and limitations](METRICS.md).
+
+## Capture and privacy settings
+
+In **Settings → History**, choose what to save, history size, and sorting. **Pause clipboard history** and **Skip the next copy** are separate controls. Open **Excluded apps and rules…** to configure application and text exclusions.
+
+Use **Settings → Snippets → Excluded apps…** for additional expansion exclusions. Clipboard application exclusions also apply to automatic expansion.
+
+Pinned items stay until you unpin or remove them, or explicitly clear history including pins. Snippets are stored separately and survive clearing clipboard history.
+
+## Build from source
 
 ```sh
 git clone https://github.com/juanmaramos/clipp.git
@@ -134,46 +109,23 @@ cd clipp
 open Maccy.xcodeproj
 ```
 
-Build with Xcode 15+ and Swift 5.9+
+Select the **Clipp** scheme in Xcode and build. CI uses the latest stable Xcode. Debug builds use a separate `futurialabs.clipp.dev` identity, data, and preferences, and do not install public updates.
 
-## Support
+Run the unit and regression tests:
 
-If Clipp saves you time, you can support development:
+```sh
+xcodebuild -project Maccy.xcodeproj -scheme Clipp -configuration Debug \
+  -derivedDataPath /tmp/clipp-development -destination 'platform=macOS' \
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+  -only-testing:MaccyTests test
+```
 
-- Buy Me a Coffee: https://buymeacoffee.com/jmramos86k
+## Releases
 
-## Releasing
+Pull requests and pushes to main run tests and a universal Release build. The separate **Publish release** workflow runs regression tests, signs with Developer ID and hardened runtime, notarizes and staples the app, and publishes ZIP/DMG packages with checksums. It also signs the Sparkle update and updates the appcast and Homebrew cask from that exact ZIP. See [DISTRIBUTION.md](DISTRIBUTION.md).
 
-Pull requests and pushes to main run tests and a Release build. Publishing is a separate manual **Publish release** workflow on main. Update the marketing version, numeric build number, and changelog before dispatching it.
+## Credits and support
 
-GitHub Actions signs, notarizes, and packages Clipp, signs the update with Sparkle, publishes ZIP/DMG downloads, and updates the appcast and Homebrew cask with the same release. See [DISTRIBUTION.md](DISTRIBUTION.md).
+Clipp is a fork of [Maccy](https://github.com/p0deje/Maccy), released under the [MIT license](LICENSE).
 
-Existing users can enable automatic update checks or choose **Settings → General → Check Now**. New users and users of older builds without the correct update feed can download from [GitHub Releases](https://github.com/juanmaramos/clipp/releases). A manually uploaded ZIP alone does not update the Sparkle feed.
-
-For code signing and notarization setup, see [DISTRIBUTION.md](./DISTRIBUTION.md)
-
-## Snippets
-
-Clipp’s local snippet library includes optional system-wide expansion. Enable it in Settings → Snippets and allow Accessibility; grant Input Monitoring only if Clipp reports it is needed. Expansion works in supported text fields; password fields, excluded apps, and input-method composition are skipped.
-
-Open **Settings → Snippets**, choose **Add examples…** from the library menu, or create a snippet from a text item’s context menu. Personal placeholders remain disabled until edited and enabled. A disabled snippet can still be selected manually from the popup’s Snippets filter.
-
-Supported fields are `{{date}}`, `{{time}}`, `{{datetime}}`, and `{{clipboard}}`. The date/time options configure formatting, locale, time zone, and a calendar-day offset. Clipboard content is inserted literally; it is never evaluated as a template or script.
-
-In a build outside App Sandbox, enable text expansion and allow Clipp in **System Settings → Privacy & Security → Accessibility** . Click **Check again**; grant **Input Monitoring** only if the status asks for it. Password fields, active input-method composition, excluded apps, and fields that cannot verify the text at the caret are skipped. The keyboard buffer is temporary and is not logged. Snippets are stored separately from clipboard history and survive clearing it.
-
-Use **Try it here** to test a draft without granting global keyboard access. For system-wide expansion, Clipp selects the verified abbreviation and pastes the expansion. It preserves all available clipboard items and formats, restores them only if no newer copy replaced them, and excludes its temporary payload from clipboard history. Undo behavior and Accessibility support depend on the destination editor; test the apps you use before relying on automatic expansion.
-
-Debug builds use `futurialabs.clipp.dev`, separate data and preferences, and do not check for or install public updates.
-
-## Credits
-
-Clipp is a fork of [Maccy](https://github.com/p0deje/Maccy).
-
-## License
-
-[MIT](./LICENSE)
-
-### Time saved
-
-Open **Settings → Time saved** for clipboard reuses, confirmed typed expansions, characters avoided, and estimated savings. Adjust the default 50 words/minute and assumed 5 seconds per reuse in **How we calculate this**; set retrieval seconds to 0 to exclude that estimate. Daily counts stay on this Mac and can be paused or reset. The estimates compare with manual work, not with other users. [Read the formulas, research, and limitations](METRICS.md).
+If Clipp is useful to you, you can [support development](https://buymeacoffee.com/jmramos86k).
