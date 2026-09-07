@@ -1,11 +1,11 @@
 import XCTest
 import Defaults
-@testable import Maccy
+@testable import Clipp
 
 // swiftlint:disable type_body_length
 class ClipboardTests: XCTestCase {
   let clipboard = Clipboard.shared
-  let pasteboard = NSPasteboard.general
+  let pasteboard = Clipboard.shared.pasteboard
   let image = NSImage(named: "NSInfo")!
   let coloredString = NSAttributedString(string: "foo",
                                          attributes: [.foregroundColor: NSColor.red])
@@ -132,12 +132,12 @@ class ClipboardTests: XCTestCase {
     pasteboard.setString("foo", forType: .string)
     waitForExpectations(timeout: 2)
 
-    XCTAssertFalse(Defaults[.ignoreEvents])
+    XCTAssertTrue(Defaults[.ignoreEvents])
     XCTAssertFalse(Defaults[.ignoreOnlyNextEvent])
   }
 
   func testIgnoreApplication() {
-    Defaults[.ignoredApps] = ["com.apple.dt.Xcode", "com.apple.finder"] // Finder is on Bitrise
+    Defaults[.ignoredApps] = [NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""]
 
     let hookExpectation = expectation(description: "Hook is called")
     hookExpectation.isInverted = true
@@ -152,7 +152,7 @@ class ClipboardTests: XCTestCase {
 
   func testIgnoreAllApplicationsExcept() {
     Defaults[.ignoreAllAppsExceptListed] = true
-    Defaults[.ignoredApps] = ["com.apple.dt.Xcode", "com.apple.finder"] // Finder is on Bitrise
+    Defaults[.ignoredApps] = [NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""]
 
     let hookExpectation = expectation(description: "Hook is called")
     clipboard.onNewCopy({ (_: HistoryItem) in

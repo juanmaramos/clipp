@@ -14,13 +14,13 @@ class Search {
     var description: String {
       switch self {
       case .exact:
-        return NSLocalizedString("Exact", tableName: "GeneralSettings", comment: "")
+        return NSLocalizedString("Contains", tableName: "GeneralSettings", comment: "")
       case .fuzzy:
         return NSLocalizedString("Fuzzy", tableName: "GeneralSettings", comment: "")
       case .regexp:
         return NSLocalizedString("Regex", tableName: "GeneralSettings", comment: "")
       case .mixed:
-        return NSLocalizedString("Mixed", tableName: "GeneralSettings", comment: "")
+        return NSLocalizedString("Contains, then fuzzy", tableName: "GeneralSettings", comment: "")
       }
     }
   }
@@ -114,11 +114,6 @@ class Search {
 
   private func mixedSearch(string: String, within: [Searchable]) -> [SearchResult] {
     var results = simpleSearch(string: string, within: within, options: .caseInsensitive)
-    guard results.isEmpty else {
-      return results
-    }
-
-    results = simpleSearch(string: string, within: within, options: .regularExpression)
     guard results.isEmpty else {
       return results
     }

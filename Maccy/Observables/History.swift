@@ -27,17 +27,30 @@ class History { // swiftlint:disable:this type_body_length
   var searchQuery: String = "" {
     didSet {
       throttler.throttle { [self] in
-        updateItems(search.search(string: searchQuery, within: all))
-
-        if searchQuery.isEmpty {
-          AppState.shared.selection = unpinnedItems.first?.id
-        } else {
-          AppState.shared.highlightFirst()
-        }
-
-        AppState.shared.popup.needsResize = true
+        MainActor.assumeIsolated { applySearch() }
       }
     }
+  }
+
+  @ObservationIgnored private var appliedSearchQuery = ""
+
+  @MainActor
+  func flushPendingSearch() {
+    guard appliedSearchQuery != searchQuery else { return }
+    throttler.cancel()
+    applySearch()
+  }
+
+  @MainActor
+  private func applySearch() {
+    updateItems(search.search(string: searchQuery, within: all))
+    appliedSearchQuery = searchQuery
+    if searchQuery.isEmpty { AppState.shared.selection = unpinnedItems.first?.id }
+    else {
+      AppState.shared.selection = nil
+      AppState.shared.highlightFirst()
+    }
+    AppState.shared.popup.needsResize = true
   }
 
   var pressedShortcutItem: HistoryItemDecorator? {
@@ -45,34 +58,20 @@ class History { // swiftlint:disable:this type_body_length
       return nil
     }
 
+    return shortcutItem(for: event)
+  }
+
+  func shortcutItem(for event: NSEvent) -> HistoryItemDecorator? {
     let modifierFlags = event.modifierFlags
       .intersection(.deviceIndependentFlagsMask)
-      .subtracting(.capsLock)
+      .subtracting([.capsLock, .numericPad, .function])
 
     guard HistoryItemAction(modifierFlags) != .unknown else {
       return nil
     }
 
     let key = Sauce.shared.key(for: Int(event.keyCode))
-    return items.first { $0.shortcuts.contains(where: { $0.key == key }) }
-  }
-
-  var bareNumberPressedItem: HistoryItemDecorator? {
-    guard let event = NSApp.currentEvent else {
-      return nil
-    }
-
-    let modifierFlags = event.modifierFlags
-      .intersection(.deviceIndependentFlagsMask)
-      .subtracting([.capsLock, .numericPad, .function])
-
-    // Only match when no modifiers are pressed (bare key press)
-    guard modifierFlags.isEmpty else {
-      return nil
-    }
-
-    let key = Sauce.shared.key(for: Int(event.keyCode))
-    return items.first { $0.shortcuts.contains(where: { $0.key == key }) }
+    return items.first { $0.isVisible && $0.shortcuts.contains(where: { $0.key == key && $0.modifierFlags == modifierFlags }) }
   }
 
   private let search = Search()
@@ -97,13 +96,13 @@ class History { // swiftlint:disable:this type_body_length
 
     Task {
       for await _ in Defaults.updates(.sortBy, initial: false) {
-        try? await load()
+        do { try await load() } catch { await reportLoadError(error) }
       }
     }
 
     Task {
       for await _ in Defaults.updates(.pinTo, initial: false) {
-        try? await load()
+        do { try await load() } catch { await reportLoadError(error) }
       }
     }
 
@@ -141,6 +140,11 @@ class History { // swiftlint:disable:this type_body_length
   }
 
   @MainActor
+  private func reportLoadError(_ error: Error) {
+    Storage.shared.errorMessage = "Could not load history: \(error.localizedDescription)"
+  }
+
+  @MainActor
   private func limitHistorySize(to maxSize: Int) {
     let unpinned = all.filter(\.isUnpinned)
     if unpinned.count >= maxSize {
@@ -150,17 +154,17 @@ class History { // swiftlint:disable:this type_body_length
 
   @MainActor
   func insertIntoStorage(_ item: HistoryItem) throws {
-    logger.info("Inserting item with id '\(item.title)'")
+    logger.info("Inserting history item \(item.id)")
     Storage.shared.context.insert(item)
     Storage.shared.context.processPendingChanges()
-    try? Storage.shared.context.save()
+    try Storage.shared.context.save()
   }
 
   @discardableResult
   @MainActor
   func add(_ item: HistoryItem) -> HistoryItemDecorator {
     if #available(macOS 15.0, *) {
-      try? History.shared.insertIntoStorage(item)
+      Storage.shared.context.insert(item)
     } else {
       // On macOS 14 the history item needs to be inserted into storage directly after creating it.
       // It was already inserted after creation in Clipboard.swift
@@ -174,21 +178,17 @@ class History { // swiftlint:disable:this type_body_length
       item.firstCopiedAt = existingHistoryItem.firstCopiedAt
       item.numberOfCopies += existingHistoryItem.numberOfCopies
       item.pin = existingHistoryItem.pin
-      item.title = existingHistoryItem.title
-      if !item.fromMaccy {
-        item.application = existingHistoryItem.application
+      if isModified(item) == nil || existingHistoryItem.title != existingHistoryItem.generateTitle() {
+        item.title = existingHistoryItem.title
       }
-      logger.info("Removing duplicate item '\(item.title)'")
+      item.application = existingHistoryItem.application
+      logger.info("Removing duplicate history item \(existingHistoryItem.id)")
       Storage.shared.context.delete(existingHistoryItem)
       removedItemIndex = all.firstIndex(where: { $0.item == existingHistoryItem })
-      if let removedItemIndex {
-        all.remove(at: removedItemIndex)
-      }
-    } else {
-      Task {
-        Notifier.notify(body: item.title, sound: .write)
-      }
     }
+    guard Storage.shared.commit({}) else { return HistoryItemDecorator(item) }
+    if let removedItemIndex { all.remove(at: removedItemIndex) }
+    else { Task { Notifier.notify(body: item.title, sound: .write) } }
 
     // Remove exceeding items. Do this after the item is added to avoid removing something
     // if a duplicate was found as then the size already stayed the same.
@@ -196,116 +196,54 @@ class History { // swiftlint:disable:this type_body_length
 
     sessionLog[Clipboard.shared.changeCount] = item
 
-    var itemDecorator: HistoryItemDecorator
-    if let pin = item.pin {
-      itemDecorator = HistoryItemDecorator(item, shortcuts: KeyShortcut.create(character: pin))
-      // Keep pins in the same place.
-      if let removedItemIndex {
-        all.insert(itemDecorator, at: removedItemIndex)
-      }
+    let itemDecorator = HistoryItemDecorator(item, shortcuts: item.pin.map { KeyShortcut.create(character: $0) } ?? [])
+    if item.pin != nil, let removedItemIndex {
+      all.insert(itemDecorator, at: min(removedItemIndex, all.count))
     } else {
-      itemDecorator = HistoryItemDecorator(item)
-
       let sortedItems = sorter.sort(all.map(\.item) + [item])
-      if let index = sortedItems.firstIndex(of: item) {
-        all.insert(itemDecorator, at: index)
-      }
-
-      items = all
-      updateUnpinnedShortcuts()
-      AppState.shared.popup.needsResize = true
+      if let index = sortedItems.firstIndex(of: item) { all.insert(itemDecorator, at: index) }
     }
+    items = all
+    updateUnpinnedShortcuts()
+    AppState.shared.popup.needsResize = true
 
     return itemDecorator
   }
 
   @MainActor
-  private func withLogging(_ msg: String, _ block: () throws -> Void) rethrows {
-    func dataCounts() -> String {
-      let historyItemCount = try? Storage.shared.context.fetchCount(FetchDescriptor<HistoryItem>())
-      let historyContentCount = try? Storage.shared.context.fetchCount(FetchDescriptor<HistoryItemContent>())
-      return "HistoryItem=\(historyItemCount ?? 0) HistoryItemContent=\(historyContentCount ?? 0)"
-    }
-
-    logger.info("\(msg) Before: \(dataCounts())")
-    try? block()
-    logger.info("\(msg) After: \(dataCounts())")
-  }
+  func clear() { clearHistory(includingPins: false) }
 
   @MainActor
-  func clear() {
-    withLogging("Clearing history") {
-      all.forEach { item in
-        if item.isUnpinned {
-          cleanup(item)
-        }
-      }
-      all.removeAll(where: \.isUnpinned)
-      sessionLog.removeValues { $0.pin == nil }
-      items = all
-
-      try? Storage.shared.context.transaction {
-        try? Storage.shared.context.delete(
-          model: HistoryItem.self,
-          where: #Predicate { $0.pin == nil }
-        )
-        try? Storage.shared.context.delete(
-          model: HistoryItemContent.self,
-          where: #Predicate { $0.item?.pin == nil }
-        )
-      }
-      Storage.shared.context.processPendingChanges()
-      try? Storage.shared.context.save()
-    }
-
-    Clipboard.shared.clear()
-    AppState.shared.popup.close()
-    Task {
-      AppState.shared.popup.needsResize = true
-    }
-  }
+  func clearAll() { clearHistory(includingPins: true) }
 
   @MainActor
-  func clearAll() {
-    withLogging("Clearing all history") {
-      all.forEach { item in
-        cleanup(item)
-      }
-      all.removeAll()
-      sessionLog.removeAll()
-      items = all
-
-      try? Storage.shared.context.delete(model: HistoryItem.self)
-      Storage.shared.context.processPendingChanges()
-      try? Storage.shared.context.save()
-    }
-
+  private func clearHistory(includingPins: Bool) {
+    let removed = all.filter { includingPins || $0.isUnpinned }
+    guard Storage.shared.commit({
+      let stored = try Storage.shared.context.fetch(FetchDescriptor<HistoryItem>())
+      for item in stored where includingPins || item.pin == nil { Storage.shared.context.delete(item) }
+    }) else { return }
+    for item in removed { cleanup(item) }
+    let ids = Set(removed.map(\.id))
+    all.removeAll { ids.contains($0.id) }
+    items = all
+    if includingPins { sessionLog.removeAll() }
+    else { sessionLog.removeValues { $0.pin == nil } }
     Clipboard.shared.clear()
     AppState.shared.popup.close()
-    Task {
-      AppState.shared.popup.needsResize = true
-    }
+    AppState.shared.popup.needsResize = true
   }
 
   @MainActor
   func delete(_ item: HistoryItemDecorator?) {
     guard let item else { return }
-
+    guard Storage.shared.commit({ Storage.shared.context.delete(item.item) }) else { return }
     cleanup(item)
-    withLogging("Removing history item") {
-      Storage.shared.context.delete(item.item)
-      Storage.shared.context.processPendingChanges()
-      try? Storage.shared.context.save()
-    }
-
     all.removeAll { $0 == item }
     items.removeAll { $0 == item }
     sessionLog.removeValues { $0 == item.item }
-
     updateUnpinnedShortcuts()
-    Task {
-      AppState.shared.popup.needsResize = true
-    }
+    AppState.shared.popup.needsResize = true
   }
 
   @MainActor
@@ -314,14 +252,15 @@ class History { // swiftlint:disable:this type_body_length
   }
 
   @MainActor
-  func select(_ item: HistoryItemDecorator?) {
+  func select(_ item: HistoryItemDecorator?, modifiers: NSEvent.ModifierFlags? = nil) {
     guard let item else {
       return
     }
 
-    let modifierFlags = NSApp.currentEvent?.modifierFlags
+    let modifierFlags = (modifiers ?? NSApp.currentEvent?.modifierFlags)?
       .intersection(.deviceIndependentFlagsMask)
       .subtracting([.capsLock, .numericPad, .function]) ?? []
+    let isReuse = !Clipboard.shared.contains(item.item)
 
     if modifierFlags.isEmpty {
       AppState.shared.popup.close()
@@ -347,6 +286,7 @@ class History { // swiftlint:disable:this type_body_length
       }
     }
 
+    if isReuse { UsageStatistics.shared.recordClipboardReuse() }
     Task {
       searchQuery = ""
     }
@@ -431,7 +371,7 @@ class History { // swiftlint:disable:this type_body_length
     }
 
     var index = 1
-    for item in visibleUnpinnedItems.prefix(10) {
+    for item in visibleUnpinnedItems.prefix(9) {
       item.shortcuts = KeyShortcut.create(character: String(index))
       index += 1
     }

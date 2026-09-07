@@ -6,8 +6,7 @@ struct KeyShortcut: Identifiable {
   static func create(character: String) -> [KeyShortcut] {
     let key = Key(character: character, virtualKeyCode: nil)
     return [
-      KeyShortcut(key: key, modifierFlags: []),  // Bare number for instant paste
-      KeyShortcut(key: key, modifierFlags: [.command]),  // Cmd+number as alternate
+      KeyShortcut(key: key, modifierFlags: [.command]),
       KeyShortcut(key: key, modifierFlags: [.option]),
       KeyShortcut(key: key, modifierFlags: [Defaults[.pasteByDefault] ? .command : .option, .shift])
     ]
@@ -40,8 +39,7 @@ struct KeyShortcut: Identifiable {
       return true
     }
 
-    // For history items with multiple shortcuts, always show the primary one (bare number/first)
-    // This matches standard macOS behavior where shortcuts are static, not dynamic
+    // Show the primary shortcut, including its modifier, even while searching.
     return self.id == all.first?.id
   }
 }

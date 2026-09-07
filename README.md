@@ -6,7 +6,8 @@ A lightweight clipboard manager for macOS with instant paste shortcuts.
 
 ## Features
 
-* **Instant number paste** - Press `1-9` to instantly paste clipboard items (Clipy-style)
+* **Quick selection** - Press `⌘1`–`⌘9` to activate a visible clipboard item; plain numbers search
+* **Text expansion** - Create personal snippets with typed shortcuts, date/time fields, and local storage
 * **Keyboard-first** - Navigate with arrows, search, and select without touching the mouse
 * **Lightweight and fast** - Native SwiftUI with minimal resource usage
 * **Secure and private** - All data stays local, no cloud sync
@@ -20,6 +21,16 @@ macOS Sonoma 14 or higher
 ## Install
 
 Download the latest version (`Clipp.dmg` or `Clipp.zip`) from the [releases](https://github.com/juanmaramos/clipp/releases) page.
+
+Or install through Homebrew:
+
+```sh
+brew tap juanmaramos/tap https://github.com/juanmaramos/clipp.git
+brew install --cask juanmaramos/tap/clipp
+```
+
+The tap tracks published releases, not unbuilt source changes.
+
 
 ## Why Clipp
 
@@ -39,7 +50,7 @@ you are in the right place.
 ### Basic Operations
 
 1. Press <kbd>⇧</kbd> + <kbd>⌘</kbd> + <kbd>V</kbd> to open Clipp
-2. **Instant paste**: Press `1-9` to instantly paste that item
+2. **Quick selection**: Press `⌘1`–`⌘9` to activate that visible result
 3. **Navigate**: Use arrow keys or type to search
 4. Press <kbd>Enter</kbd> to paste the selected item
 5. Press <kbd>Esc</kbd> to close
@@ -49,7 +60,7 @@ you are in the right place.
 | Action | Shortcut |
 |--------|----------|
 | Open Clipp | <kbd>⇧⌘V</kbd> |
-| Instant paste | `1-9` (just the number) |
+| Activate result 1–9 | `⌘1`–`⌘9` |
 | Navigate | <kbd>↑</kbd> <kbd>↓</kbd> |
 | Search | Start typing |
 | Paste selected | <kbd>Enter</kbd> |
@@ -95,7 +106,7 @@ Add apps to the ignore list in Preferences → Ignore → Applications.
 
 ### Custom Keyboard Shortcut
 
-Change the main shortcut in Preferences → General → Open.
+Change the main shortcut in Settings → General → Open clipboard history.
 
 ## FAQ
 
@@ -133,29 +144,27 @@ If Clipp saves you time, you can support development:
 
 ## Releasing
 
-To create a new release:
+Pull requests and pushes to main run tests and a Release build. Publishing is a separate manual **Publish release** workflow on main. Update the marketing version, numeric build number, and changelog before dispatching it.
 
-```sh
-# Update version in CHANGELOG.md
-# Commit your changes
-git add .
-git commit -m "Release v1.0.0"
+GitHub Actions signs, notarizes, and packages Clipp, signs the update with Sparkle, publishes ZIP/DMG downloads, and updates the appcast and Homebrew cask with the same release. See [DISTRIBUTION.md](DISTRIBUTION.md).
 
-# Create and push tag
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-GitHub Actions will automatically:
-1. Build the app
-2. Create `.zip` and `.dmg` packages
-3. Generate SHA-256 checksums
-4. Create a GitHub Release
-5. Attach downloadable files
-
-Users can then download from: https://github.com/juanmaramos/clipp/releases
+Existing users can enable automatic update checks or choose **Settings → General → Check Now**. New users and users of older builds without the correct update feed can download from [GitHub Releases](https://github.com/juanmaramos/clipp/releases). A manually uploaded ZIP alone does not update the Sparkle feed.
 
 For code signing and notarization setup, see [DISTRIBUTION.md](./DISTRIBUTION.md)
+
+## Snippets
+
+Clipp’s local snippet library includes optional system-wide expansion. Enable it in Settings → Snippets and allow Accessibility; grant Input Monitoring only if Clipp reports it is needed. Expansion works in supported text fields; password fields, excluded apps, and input-method composition are skipped.
+
+Open **Settings → Snippets**, choose **Add examples…** from the library menu, or create a snippet from a text item’s context menu. Personal placeholders remain disabled until edited and enabled. A disabled snippet can still be selected manually from the popup’s Snippets filter.
+
+Supported fields are `{{date}}`, `{{time}}`, `{{datetime}}`, and `{{clipboard}}`. The date/time options configure formatting, locale, time zone, and a calendar-day offset. Clipboard content is inserted literally; it is never evaluated as a template or script.
+
+In a build outside App Sandbox, enable text expansion and allow Clipp in **System Settings → Privacy & Security → Accessibility** . Click **Check again**; grant **Input Monitoring** only if the status asks for it. Password fields, active input-method composition, excluded apps, and fields that cannot verify the text at the caret are skipped. The keyboard buffer is temporary and is not logged. Snippets are stored separately from clipboard history and survive clearing it.
+
+Use **Try it here** to test a draft without granting global keyboard access. For system-wide expansion, Clipp selects the verified abbreviation and pastes the expansion. It preserves all available clipboard items and formats, restores them only if no newer copy replaced them, and excludes its temporary payload from clipboard history. Undo behavior and Accessibility support depend on the destination editor; test the apps you use before relying on automatic expansion.
+
+Debug builds use `futurialabs.clipp.dev`, separate data and preferences, and do not check for or install public updates.
 
 ## Credits
 
@@ -164,3 +173,7 @@ Clipp is a fork of [Maccy](https://github.com/p0deje/Maccy).
 ## License
 
 [MIT](./LICENSE)
+
+### Time saved
+
+Open **Settings → Time saved** for clipboard reuses, confirmed typed expansions, characters avoided, and estimated savings. Adjust the default 50 words/minute and assumed 5 seconds per reuse in **How we calculate this**; set retrieval seconds to 0 to exclude that estimate. Daily counts stay on this Mac and can be paused or reset. The estimates compare with manual work, not with other users. [Read the formulas, research, and limitations](METRICS.md).

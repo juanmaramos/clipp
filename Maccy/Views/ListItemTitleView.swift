@@ -9,7 +9,7 @@ struct ListItemTitleView<Title: View>: View {
       Text(attributedTitle)
         .accessibilityIdentifier("copy-history-item")
         .lineLimit(1)
-        .truncationMode(.middle)
+        .truncationMode(.tail)
     } else {
       title()
         .accessibilityIdentifier("copy-history-item")

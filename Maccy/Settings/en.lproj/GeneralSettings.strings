@@ -2,8 +2,8 @@
 "LaunchAtLogin" = "Launch at login";
 "CheckForUpdates" = "Check for updates automatically";
 "CheckNow" = "Check now";
-"Open" = "Paste item";
-"OpenTooltip" = "Global shortcut for showing clipboard history and pasting items";
+"Open" = "Open clipboard history";
+"OpenTooltip" = "Global shortcut for opening the clipboard picker";
 "Pin" = "Pin Item";
 "PinTooltip" = "Keep item at top permanently";
 "Delete" = "Delete Item";
@@ -18,3 +18,6 @@
 "Regex" = "Regular expressions";
 "Mixed" = "Mixed";
 "NotificationsAndSounds" = "Notifications and sounds 􀱁";
+
+"Contains" = "Contains";
+"Contains, then fuzzy" = "Contains, then fuzzy";

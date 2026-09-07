@@ -1,6 +1,6 @@
 import XCTest
 import Defaults
-@testable import Maccy
+@testable import Clipp
 
 class SearchTests: XCTestCase {
   let savedSearchMode = Defaults[.searchMode]

@@ -17,6 +17,13 @@ struct KeyHandlingView<Content: View>: View {
         // preferences. Stick to NSEvent to fix this behavior.
 
         let keyChord = KeyChord(NSApp.currentEvent)
+        if let event = NSApp.currentEvent, appState.handleQuickSelection(event) { return .handled }
+        if appState.showingSnippets {
+          switch keyChord {
+          case .clearHistory, .clearHistoryAll, .deleteCurrentItem, .pinOrUnpin: return .ignored
+          default: break
+          }
+        }
 
         // Handle app shortcuts FIRST, even when search is focused
         // This prevents text field from capturing Cmd+, and similar shortcuts
@@ -133,26 +140,6 @@ struct KeyHandlingView<Content: View>: View {
           return .handled
         default:
           ()
-        }
-
-        // Handle bare number presses (1-9, 0) for instant paste (Clipy-style)
-        // Only when search field is not focused
-        if !searchFocused, let item = appState.history.bareNumberPressedItem {
-          appState.selection = item.id
-          Task {
-            try? await Task.sleep(for: .milliseconds(50))
-            appState.history.select(item)
-          }
-          return .handled
-        }
-
-        if let item = appState.history.pressedShortcutItem {
-          appState.selection = item.id
-          Task {
-            try? await Task.sleep(for: .milliseconds(50))
-            appState.history.select(item)
-          }
-          return .handled
         }
 
         // Auto-focus search when typing regular text (not shortcuts)

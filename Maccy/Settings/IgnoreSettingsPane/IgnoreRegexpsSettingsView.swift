@@ -3,55 +3,48 @@ import Defaults
 
 struct IgnoreRegexpsSettingsView: View {
   @Default(.ignoreRegexp) private var ignoredRegexps
+  @State private var selection: String?
+  @State private var draft = ""
 
-  @FocusState private var focus: String.ID?
-  @State private var edit = ""
-  @State private var selection = ""
+  private var validation: String? {
+    guard !draft.isEmpty else { return "Enter a regular expression." }
+    do { _ = try NSRegularExpression(pattern: draft); return nil }
+    catch { return "Invalid expression: \(error.localizedDescription)" }
+  }
 
   var body: some View {
-    VStack(alignment: .leading) {
-      List(selection: $selection) {
-        ForEach(ignoredRegexps) { regexp in
-          TextField("", text: Binding(
-            get: { regexp },
-            set: {
-              guard !$0.isEmpty, regexp != $0 else { return }
-              edit = $0
-            })
-          ).onSubmit {
-            remove(regexp)
-            ignoredRegexps.append(edit)
-          }.focused($focus, equals: regexp)
+    VStack(alignment: .leading, spacing: 10) {
+      List(Array(Set(ignoredRegexps)).sorted(), id: \.self, selection: $selection) { expression in
+        HStack {
+          Text(expression).font(.body.monospaced())
+          if (try? NSRegularExpression(pattern: expression)) == nil {
+            Image(systemName: "exclamationmark.triangle").help("Invalid rule. Other valid rules still apply.")
+          }
         }
-      }.onDeleteCommand {
-        remove(selection)
       }
-
-      ControlGroup {
-        Button("", systemImage: "plus") {
-          ignoredRegexps.append("^[a-zA-Z0-9]{50}$")
-          focus = "^[a-zA-Z0-9]{50}$"
-        }
-        Button("", systemImage: "minus") {
-          remove(selection)
-        }
-      }.frame(width: 50)
-
-      Text("IgnoredRegexpsDescription", tableName: "IgnoreSettings")
-        .fixedSize(horizontal: false, vertical: true)
-        .foregroundStyle(.gray)
-        .controlSize(.small)
+      .onChange(of: selection) { _, value in draft = value ?? "" }
+      TextField("Regular expression", text: $draft).textFieldStyle(.roundedBorder)
+        .onSubmit { save() }
+      if let validation, !draft.isEmpty { Text(validation).font(.caption).foregroundStyle(.red) }
+      HStack {
+        Button("New rule") { selection = nil; draft = "" }
+        Button("Remove", role: .destructive) {
+          ignoredRegexps.removeAll { $0 == selection }; selection = nil; draft = ""
+        }.disabled(selection == nil)
+        Spacer()
+        Button(selection == nil ? "Add rule" : "Save rule") { save() }
+          .disabled(validation != nil)
+      }
+      Text("Matching text is excluded from clipboard history. Rules are checked independently.")
+        .font(.caption).foregroundStyle(.secondary)
     }.padding()
   }
 
-  private func remove(_ regexp: String?) {
-    guard let regexp else { return }
-
-    ignoredRegexps.removeAll(where: { $0 == regexp })
+  private func save() {
+    guard validation == nil else { return }
+    var rules = ignoredRegexps.filter { $0 != selection }
+    if !rules.contains(draft) { rules.append(draft) }
+    ignoredRegexps = rules
+    selection = draft
   }
-}
-
-#Preview {
-  IgnoreRegexpsSettingsView()
-    .environment(\.locale, .init(identifier: "en"))
 }

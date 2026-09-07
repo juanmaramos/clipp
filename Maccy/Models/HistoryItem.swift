@@ -81,10 +81,15 @@ class HistoryItem {
       }
   }
 
+  @MainActor
   func generateTitle() -> String {
-    guard image == nil else {
-      Task {
-        self.performTextRecognition()
+    if image != nil, let data = imageData {
+      // Vision works on a value snapshot. SwiftData models stay on the main actor.
+      Task { @MainActor [weak self] in
+        let recognized = await Task.detached(priority: .utility) { Self.recognizedText(in: data) }.value
+        guard let self, !self.isDeleted, self.modelContext != nil,
+              self.title.isEmpty, self.imageData == data, let recognized else { return }
+        self.title = recognized
       }
       return ""
     }
@@ -209,31 +214,16 @@ class HistoryItem {
       .compactMap { $0.value }
   }
 
-  private func performTextRecognition() {
-    guard let cgImage = image?.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-      return
-    }
-
-    let requestHandler = VNImageRequestHandler(cgImage: cgImage)
-    let request = VNRecognizeTextRequest(completionHandler: recognizeTextHandler)
+  private nonisolated static func recognizedText(in data: Data) -> String? {
+    let requestHandler = VNImageRequestHandler(data: data)
+    let request = VNRecognizeTextRequest()
     request.recognitionLevel = .fast
 
     do {
       try requestHandler.perform([request])
     } catch {
-      print("Unable to perform the request: \(error).")
+      return nil
     }
-  }
-
-  private func recognizeTextHandler(request: VNRequest, error: Error?) {
-    guard let observations = request.results as? [VNRecognizedTextObservation] else {
-      return
-    }
-
-    let recognizedStrings = observations.compactMap { observation in
-      return observation.topCandidates(1).first?.string
-    }
-
-    self.title = recognizedStrings.joined(separator: "\n")
+    return request.results?.compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
   }
 }

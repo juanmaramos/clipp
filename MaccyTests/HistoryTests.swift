@@ -1,6 +1,6 @@
 import XCTest
 import Defaults
-@testable import Maccy
+@testable import Clipp
 
 @MainActor
 class HistoryTests: XCTestCase {
@@ -35,19 +35,18 @@ class HistoryTests: XCTestCase {
     let first = historyItem("foo")
     first.title = "xyz"
     first.application = "iTerm.app"
-    let firstDecorator = history.add(first)
+    history.add(first)
     first.pin = "f"
 
     let secondDecorator = history.add(historyItem("bar"))
 
     let third = historyItem("foo")
     third.application = "Xcode.app"
-    history.add(third)
+    let thirdDecorator = history.add(third)
 
-    XCTAssertEqual(history.items, [firstDecorator, secondDecorator])
+    XCTAssertEqual(history.items, [thirdDecorator, secondDecorator])
     XCTAssertTrue(history.items[0].item.lastCopiedAt > history.items[0].item.firstCopiedAt)
-    // TODO: This works in reality but fails in tests?!
-    // XCTAssertEqual(history.items[0].item.numberOfCopies, 2)
+    XCTAssertEqual(history.items[0].item.numberOfCopies, 2)
     XCTAssertEqual(history.items[0].item.pin, "f")
     XCTAssertEqual(history.items[0].item.title, "xyz")
     XCTAssertEqual(history.items[0].item.application, "iTerm.app")

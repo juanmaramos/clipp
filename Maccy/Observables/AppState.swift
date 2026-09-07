@@ -11,6 +11,59 @@ class AppState: Sendable {
   var popup: Popup
   var history: History
   var footer: Footer
+  var showingSnippets = false {
+    didSet {
+      selection = nil
+      selectedSnippetID = nil
+      popup.needsResize = true
+    }
+  }
+  var selectedSnippetID: UUID?
+
+  @MainActor var snippetResults: [SnippetDefinition] {
+    let query = history.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    return SnippetLibrary.shared.definitions.filter { snippet in
+      query.isEmpty || [snippet.name, snippet.abbreviation, snippet.content].contains {
+        $0.localizedStandardContains(query)
+      }
+    }
+  }
+
+  @MainActor
+  func handleQuickSelection(_ event: NSEvent) -> Bool {
+    guard !popup.isClosed() else { return false }
+    let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+      .subtracting([.capsLock, .numericPad, .function])
+    if showingSnippets {
+      guard flags == .command, let number = Int(event.charactersIgnoringModifiers ?? ""),
+            (1...9).contains(number), snippetResults.indices.contains(number - 1) else { return false }
+      activateSnippet(snippetResults[number - 1])
+      return true
+    }
+    guard !flags.isEmpty else { return false }
+    history.flushPendingSearch()
+    guard let item = history.shortcutItem(for: event) else { return false }
+    selection = item.id
+    history.select(item, modifiers: flags)
+    return true
+  }
+
+  @MainActor
+  func activateSnippet(_ snippet: SnippetDefinition) {
+    guard snippet.validationError(among: []) == nil else { return }
+    guard let text = SnippetTemplate.render(snippet, clipboard: NSPasteboard.general.string(forType: .string) ?? "") else {
+      SnippetLibrary.shared.message = SnippetTemplate.sizeError
+      popup.close()
+      openPreferences(pane: .snippets)
+      return
+    }
+    popup.close()
+    if Defaults[.pasteByDefault] {
+      TextExpansionService.shared.pasteSnippet(text, name: snippet.name)
+    } else {
+      Clipboard.shared.copy(text)
+    }
+  }
 
   var scrollTarget: UUID?
   var selection: UUID? {
@@ -67,6 +120,13 @@ class AppState: Sendable {
 
   @MainActor
   func select() {
+    if showingSnippets {
+      if let snippet = snippetResults.first(where: { $0.id == selectedSnippetID }) ?? snippetResults.first {
+        activateSnippet(snippet)
+      }
+      return
+    }
+    history.flushPendingSearch()
     if let item = history.selectedItem, history.items.contains(item) {
       history.select(item)
     } else if let item = footer.selectedItem {
@@ -87,13 +147,15 @@ class AppState: Sendable {
     selection = id
   }
 
-  func highlightFirst() {
+  @MainActor func highlightFirst() {
+    if showingSnippets { selectedSnippetID = snippetResults.first?.id; return }
     if let item = history.items.first(where: \.isVisible) {
       selectFromKeyboardNavigation(item.id)
     }
   }
 
-  func highlightPrevious() {
+  @MainActor func highlightPrevious() {
+    if showingSnippets { moveSnippetSelection(-1); return }
     isKeyboardNavigating = true
     if let selectedItem = history.selectedItem {
       if let nextItem = history.items.filter(\.isVisible).item(before: selectedItem) {
@@ -109,7 +171,8 @@ class AppState: Sendable {
     }
   }
 
-  func highlightNext(allowCycle: Bool = false) {
+  @MainActor func highlightNext(allowCycle: Bool = false) {
+    if showingSnippets { moveSnippetSelection(1); return }
     if let selectedItem = history.selectedItem {
       if let nextItem = history.items.filter(\.isVisible).item(after: selectedItem) {
         selectFromKeyboardNavigation(nextItem.id)
@@ -129,7 +192,8 @@ class AppState: Sendable {
     }
   }
 
-  func highlightLast() {
+  @MainActor func highlightLast() {
+    if showingSnippets { selectedSnippetID = snippetResults.last?.id; return }
     if let selectedItem = history.selectedItem {
       if selectedItem == history.items.filter(\.isVisible).last,
          let nextItem = footer.items.first(where: \.isVisible) {
@@ -149,7 +213,7 @@ class AppState: Sendable {
   }
 
   @MainActor
-  func openPreferences() { // swiftlint:disable:this function_body_length
+  func openPreferences(pane: Settings.PaneIdentifier? = nil) { // swiftlint:disable:this function_body_length
     if settingsWindowController == nil {
       settingsWindowController = SettingsWindowController(
         panes: [
@@ -177,27 +241,38 @@ class AppState: Sendable {
               .modelContainer(Storage.shared.container)
           },
           Settings.Pane(
-            identifier: Settings.PaneIdentifier.ignore,
-            title: NSLocalizedString("Title", tableName: "IgnoreSettings", comment: ""),
-            toolbarIcon: NSImage.nosign!
+            identifier: Settings.PaneIdentifier.snippets,
+            title: "Snippets",
+            toolbarIcon: NSImage(systemSymbolName: "text.badge.plus", accessibilityDescription: "Snippets")!
           ) {
-            IgnoreSettingsPane()
+            SnippetsSettingsPane()
           },
           Settings.Pane(
-            identifier: Settings.PaneIdentifier.advanced,
-            title: NSLocalizedString("Title", tableName: "AdvancedSettings", comment: ""),
-            toolbarIcon: NSImage.gearshape2!
-          ) {
-            AdvancedSettingsPane()
-          }
+            identifier: .storage,
+            title: "History",
+            toolbarIcon: NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: "History")!
+          ) { StorageSettingsPane() },
+          Settings.Pane(
+            identifier: .statistics,
+            title: "Time saved",
+            toolbarIcon: NSImage(systemSymbolName: "chart.bar", accessibilityDescription: "Time saved")!
+          ) { StatisticsSettingsPane() }
+
         ]
       )
     }
-    settingsWindowController?.show()
+    settingsWindowController?.show(pane: pane)
     settingsWindowController?.window?.orderFrontRegardless()
   }
 
   func quit() {
     NSApp.terminate(self)
+  }
+
+  @MainActor private func moveSnippetSelection(_ offset: Int) {
+    let items = snippetResults
+    guard !items.isEmpty else { return }
+    let current = items.firstIndex { $0.id == selectedSnippetID } ?? (offset > 0 ? -1 : 1)
+    selectedSnippetID = items[min(max(current + offset, 0), items.count - 1)].id
   }
 }

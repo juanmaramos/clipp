@@ -151,10 +151,20 @@ class HistoryItemDecorator: Identifiable, Hashable {
       return
     }
 
-    var attributedString = AttributedString(title.shortened(to: 500))
+    // Keep the first match in view instead of hiding it behind middle truncation.
+    let anchor = ranges.first?.lowerBound ?? title.startIndex
+    let start = title.index(anchor, offsetBy: -24, limitedBy: title.startIndex) ?? title.startIndex
+    let end = title.index(start, offsetBy: 160, limitedBy: title.endIndex) ?? title.endIndex
+    let prefix = start > title.startIndex ? "…" : ""
+    let suffix = end < title.endIndex ? "…" : ""
+    let excerpt = prefix + String(title[start..<end]) + suffix
+    var attributedString = AttributedString(excerpt)
     for range in ranges {
-      if let lowerBound = AttributedString.Index(range.lowerBound, within: attributedString),
-         let upperBound = AttributedString.Index(range.upperBound, within: attributedString) {
+      let lower = max(range.lowerBound, start)
+      let upper = min(range.upperBound, end)
+      if lower < upper {
+        let lowerBound = attributedString.characters.index(attributedString.startIndex, offsetBy: prefix.count + title.distance(from: start, to: lower))
+        let upperBound = attributedString.characters.index(attributedString.startIndex, offsetBy: prefix.count + title.distance(from: start, to: upper))
         switch Defaults[.highlightMatch] {
         case .bold:
           attributedString[lowerBound..<upperBound].font = .bold(.body)()
@@ -163,8 +173,8 @@ class HistoryItemDecorator: Identifiable, Hashable {
         case .underline:
           attributedString[lowerBound..<upperBound].underlineStyle = .single
         default:
-          attributedString[lowerBound..<upperBound].backgroundColor = .findHighlightColor
-          attributedString[lowerBound..<upperBound].foregroundColor = .black
+          attributedString[lowerBound..<upperBound].font = .bold(.body)()
+          attributedString[lowerBound..<upperBound].backgroundColor = .controlAccentColor.withAlphaComponent(0.15)
         }
       }
     }
