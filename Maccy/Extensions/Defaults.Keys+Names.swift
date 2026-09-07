@@ -11,6 +11,10 @@ struct StorageType {
 }
 
 extension Defaults.Keys {
+  static let textExpansionEnabled = Key<Bool>("textExpansionEnabled", default: false)
+  static let expansionSound = Key<Bool>("expansionSound", default: false)
+  static let expansionFeedback = Key<String>("expansionFeedback", default: "highlight")
+  static let expansionExcludedApps = Key<[String]>("expansionExcludedApps", default: [])
   static let clearOnQuit = Key<Bool>("clearOnQuit", default: false)
   static let clearSystemClipboard = Key<Bool>("clearSystemClipboard", default: false)
   static let clipboardCheckInterval = Key<Double>("clipboardCheckInterval", default: 0.5)

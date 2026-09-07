@@ -32,7 +32,8 @@ class History { // swiftlint:disable:this type_body_length
         if searchQuery.isEmpty {
           AppState.shared.selection = unpinnedItems.first?.id
         } else {
-          AppState.shared.highlightFirst()
+          // The search throttler dispatches this callback on the main queue.
+          MainActor.assumeIsolated { AppState.shared.highlightFirst() }
         }
 
         AppState.shared.popup.needsResize = true
@@ -45,34 +46,20 @@ class History { // swiftlint:disable:this type_body_length
       return nil
     }
 
+    return shortcutItem(for: event)
+  }
+
+  func shortcutItem(for event: NSEvent) -> HistoryItemDecorator? {
     let modifierFlags = event.modifierFlags
       .intersection(.deviceIndependentFlagsMask)
-      .subtracting(.capsLock)
+      .subtracting([.capsLock, .numericPad, .function])
 
     guard HistoryItemAction(modifierFlags) != .unknown else {
       return nil
     }
 
     let key = Sauce.shared.key(for: Int(event.keyCode))
-    return items.first { $0.shortcuts.contains(where: { $0.key == key }) }
-  }
-
-  var bareNumberPressedItem: HistoryItemDecorator? {
-    guard let event = NSApp.currentEvent else {
-      return nil
-    }
-
-    let modifierFlags = event.modifierFlags
-      .intersection(.deviceIndependentFlagsMask)
-      .subtracting([.capsLock, .numericPad, .function])
-
-    // Only match when no modifiers are pressed (bare key press)
-    guard modifierFlags.isEmpty else {
-      return nil
-    }
-
-    let key = Sauce.shared.key(for: Int(event.keyCode))
-    return items.first { $0.shortcuts.contains(where: { $0.key == key }) }
+    return items.first { $0.isVisible && $0.shortcuts.contains(where: { $0.key == key && $0.modifierFlags == modifierFlags }) }
   }
 
   private let search = Search()
@@ -314,12 +301,12 @@ class History { // swiftlint:disable:this type_body_length
   }
 
   @MainActor
-  func select(_ item: HistoryItemDecorator?) {
+  func select(_ item: HistoryItemDecorator?, modifiers: NSEvent.ModifierFlags? = nil) {
     guard let item else {
       return
     }
 
-    let modifierFlags = NSApp.currentEvent?.modifierFlags
+    let modifierFlags = (modifiers ?? NSApp.currentEvent?.modifierFlags)?
       .intersection(.deviceIndependentFlagsMask)
       .subtracting([.capsLock, .numericPad, .function]) ?? []
 
@@ -431,7 +418,7 @@ class History { // swiftlint:disable:this type_body_length
     }
 
     var index = 1
-    for item in visibleUnpinnedItems.prefix(10) {
+    for item in visibleUnpinnedItems.prefix(9) {
       item.shortcuts = KeyShortcut.create(character: String(index))
       index += 1
     }

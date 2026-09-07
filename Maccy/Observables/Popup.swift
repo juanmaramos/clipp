@@ -108,7 +108,9 @@ class Popup {
   private func handleEvent(_ event: NSEvent) -> NSEvent? {
     switch event.type {
     case .keyDown:
-      return handleKeyDown(event)
+      // NSEvent local monitors execute on the main thread, before the field editor.
+      let consumed = MainActor.assumeIsolated { handleKeyDown(event) == nil }
+      return consumed ? nil : event
     case .flagsChanged:
       return handleFlagsChanged(event)
     default:
@@ -116,7 +118,9 @@ class Popup {
     }
   }
 
-  private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+  @MainActor private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+    // Route command shortcuts before the search field's editor consumes them.
+    if !isClosed(), AppState.shared.handleQuickSelection(event) { return nil }
     if isHotKeyCode(Int(event.keyCode)) {
       if let item = History.shared.pressedShortcutItem {
         AppState.shared.selection = item.id

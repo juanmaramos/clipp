@@ -23,10 +23,14 @@ struct ContentView: View {
             searchQuery: $appState.history.searchQuery
           )
 
-          HistoryListView(
-            searchQuery: $appState.history.searchQuery,
-            searchFocused: $searchFocused
-          )
+          if appState.showingSnippets {
+            SnippetResultsView()
+          } else {
+            HistoryListView(
+              searchQuery: $appState.history.searchQuery,
+              searchFocused: $searchFocused
+            )
+          }
 
           FooterView(footer: appState.footer)
         }

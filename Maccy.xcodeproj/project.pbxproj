@@ -127,6 +127,12 @@
 		DAFE2DDA268A521B00990986 /* String+Shortened.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAFE2DD9268A521A00990986 /* String+Shortened.swift */; };
 		DAFE2DE9268A9B1B00990986 /* HistoryItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAFE2DE8268A9B1B00990986 /* HistoryItemTests.swift */; };
 		DAFEF0B8249D7DEE006029E8 /* KeyboardShortcuts.Name+Shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAFEF0B7249D7DEE006029E8 /* KeyboardShortcuts.Name+Shortcuts.swift */; };
+		4E6932CA4F014DB798B5ACC9 /* Snippet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FC420F1331347F003A34147 /* Snippet.swift */; };
+		2A16BCB3DD30896A8CC83B85 /* SnippetLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = D770E5C0C6D1F697D3B581E3 /* SnippetLibrary.swift */; };
+		8C2DC0FAA9F9F684E094F0A0 /* SnippetResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 542DE6F65EA5035E2132AF4C /* SnippetResultsView.swift */; };
+		19003348B5F3877A5B7F8475 /* SnippetsSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571444440A28E338191B9F00 /* SnippetsSettingsPane.swift */; };
+		FE0A3F08037F129373FCABB7 /* TextExpansionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39975590682AF0302F9C2D66 /* TextExpansionService.swift */; };
+		434C495050534E495050455442 /* SnippetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434C495050534E495050455452; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -518,6 +524,12 @@
 		DAFE2DD9268A521A00990986 /* String+Shortened.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Shortened.swift"; sourceTree = "<group>"; };
 		DAFE2DE8268A9B1B00990986 /* HistoryItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryItemTests.swift; sourceTree = "<group>"; };
 		DAFEF0B7249D7DEE006029E8 /* KeyboardShortcuts.Name+Shortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeyboardShortcuts.Name+Shortcuts.swift"; sourceTree = "<group>"; };
+		0FC420F1331347F003A34147 /* Snippet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/Snippet.swift; sourceTree = SOURCE_ROOT; };
+		D770E5C0C6D1F697D3B581E3 /* SnippetLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/SnippetLibrary.swift; sourceTree = SOURCE_ROOT; };
+		542DE6F65EA5035E2132AF4C /* SnippetResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/SnippetResultsView.swift; sourceTree = SOURCE_ROOT; };
+		571444440A28E338191B9F00 /* SnippetsSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/SnippetsSettingsPane.swift; sourceTree = SOURCE_ROOT; };
+		39975590682AF0302F9C2D66 /* TextExpansionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/TextExpansionService.swift; sourceTree = SOURCE_ROOT; };
+		434C495050534E495050455452 /* SnippetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaccyTests/SnippetTests.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -751,6 +763,12 @@
 		DAEE38451E3DBEB100DD2966 /* Maccy */ = {
 			isa = PBXGroup;
 			children = (
+				434C495050534E495050455452 /* SnippetTests.swift */,
+				0FC420F1331347F003A34147 /* Snippet.swift */,
+				D770E5C0C6D1F697D3B581E3 /* SnippetLibrary.swift */,
+				542DE6F65EA5035E2132AF4C /* SnippetResultsView.swift */,
+				571444440A28E338191B9F00 /* SnippetsSettingsPane.swift */,
+				39975590682AF0302F9C2D66 /* TextExpansionService.swift */,
 				2FBB7A252B5FECBB00C65BBE /* Extensions */,
 				DA68F91F28BD819E007E2F25 /* Intents */,
 				DA05B50F2C234C1C006980FE /* Models */,
@@ -1002,6 +1020,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				434C495050534E495050455442 /* SnippetTests.swift in Sources */,
 				DAFE2DE9268A9B1B00990986 /* HistoryItemTests.swift in Sources */,
 				DA3CE8001E44A62500B3AA98 /* ClipboardTests.swift in Sources */,
 				DA1EDE432045B35300479723 /* HistoryDecoratorTests.swift in Sources */,
@@ -1016,6 +1035,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4E6932CA4F014DB798B5ACC9 /* Snippet.swift in Sources */,
+				2A16BCB3DD30896A8CC83B85 /* SnippetLibrary.swift in Sources */,
+				8C2DC0FAA9F9F684E094F0A0 /* SnippetResultsView.swift in Sources */,
+				19003348B5F3877A5B7F8475 /* SnippetsSettingsPane.swift in Sources */,
+				FE0A3F08037F129373FCABB7 /* TextExpansionService.swift in Sources */,
 				DA19691C2C3F3EAC00258481 /* Collection+Surrounding.swift in Sources */,
 				DA1969142C3F11D600258481 /* PreviewItemView.swift in Sources */,
 				DAA072D52C40AC52006DDFD2 /* HistoryListView.swift in Sources */,
@@ -1670,7 +1694,7 @@
 					"$(PROJECT_DIR)",
 				);
 				INFOPLIST_FILE = Maccy/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Clipp;
+				INFOPLIST_KEY_CFBundleDisplayName = "Clipp Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1678,7 +1702,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 2.6.1;
-				PRODUCT_BUNDLE_IDENTIFIER = futurialabs.clipp;
+				PRODUCT_BUNDLE_IDENTIFIER = futurialabs.clipp.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";

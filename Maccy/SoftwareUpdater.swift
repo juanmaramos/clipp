@@ -4,6 +4,7 @@ import Sparkle
 @MainActor
 class SoftwareUpdater: NSObject, SPUUpdaterDelegate {
   static let shared = SoftwareUpdater()
+  let isDevelopmentBuild = Bundle.main.bundleIdentifier?.hasSuffix(".dev") == true
 
   var automaticallyChecksForUpdates = false {
     didSet {
@@ -11,35 +12,40 @@ class SoftwareUpdater: NSObject, SPUUpdaterDelegate {
     }
   }
 
-  private var updater: SPUUpdater
+  private var updater: SPUUpdater { updaterController.updater }
+  @ObservationIgnored
   private var automaticallyChecksForUpdatesObservation: NSKeyValueObservation?
 
+  @ObservationIgnored
   private lazy var updaterController = SPUStandardUpdaterController(
-    startingUpdater: true,
+    startingUpdater: !isDevelopmentBuild && !CommandLine.arguments.contains("enable-testing"),
     updaterDelegate: self,
     userDriverDelegate: nil
   )
 
-  init() {
+  override init() {
     super.init()
-    updater = updaterController.updater
     automaticallyChecksForUpdatesObservation = updater.observe(
       \.automaticallyChecksForUpdates,
       options: [.initial, .new, .old]
-    ) { [unowned self] updater, change in
+    ) { [weak self] updater, change in
       guard change.newValue != change.oldValue else {
         return
       }
 
-      self.automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
+      let enabled = updater.automaticallyChecksForUpdates
+      Task { @MainActor [weak self] in
+        self?.automaticallyChecksForUpdates = enabled
+      }
     }
   }
 
   func checkForUpdates() {
+    guard !isDevelopmentBuild else { return }
     updater.checkForUpdates()
   }
 
-  func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
+  nonisolated func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
     let nsError = error as NSError
     NSLog("Sparkle update aborted [domain=%@ code=%ld]: %@", nsError.domain, nsError.code, nsError.localizedDescription)
     if let failureReason = nsError.localizedFailureReason {
@@ -50,7 +56,7 @@ class SoftwareUpdater: NSObject, SPUUpdaterDelegate {
     }
   }
 
-  func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
+  nonisolated func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
     guard let error else {
       NSLog("Sparkle update cycle finished successfully for check type %ld", updateCheck.rawValue)
       return

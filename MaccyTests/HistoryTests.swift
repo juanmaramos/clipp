@@ -1,6 +1,6 @@
 import XCTest
 import Defaults
-@testable import Maccy
+@testable import Clipp
 
 @MainActor
 class HistoryTests: XCTestCase {

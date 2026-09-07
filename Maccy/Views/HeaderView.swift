@@ -17,6 +17,22 @@ struct HeaderView: View {
           .foregroundStyle(.secondary)
       }
 
+      Menu {
+        Button("Clipboard history") { appState.showingSnippets = false; appState.popup.needsResize = true }
+        Button("Snippets") { appState.showingSnippets = true; appState.popup.needsResize = true }
+        Divider()
+        Button("Manage snippets…") { appState.popup.close(); appState.openPreferences(pane: .snippets) }
+        Button(Defaults[.textExpansionEnabled] ? "Pause text expansion" : "Enable text expansion") {
+          Defaults[.textExpansionEnabled].toggle()
+        }
+        .disabled(TextExpansionService.shared.isSandboxed)
+      } label: {
+        Image(systemName: appState.showingSnippets ? "text.badge.plus" : "clock.arrow.circlepath")
+      }
+      .menuStyle(.borderlessButton)
+      .frame(width: 28)
+      .help(appState.showingSnippets ? "Showing snippets" : "Showing clipboard history")
+
       SearchFieldView(placeholder: "search_placeholder", query: $searchQuery)
         .focused($searchFocused)
         .frame(maxWidth: .infinity)

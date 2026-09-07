@@ -26,10 +26,16 @@ struct GeneralSettingsPane: View {
         Toggle(isOn: $updater.automaticallyChecksForUpdates) {
           Text("CheckForUpdates", tableName: "GeneralSettings")
         }
+        .disabled(updater.isDevelopmentBuild)
         Button(
           action: { updater.checkForUpdates() },
           label: { Text("CheckNow", tableName: "GeneralSettings") }
         )
+        .disabled(updater.isDevelopmentBuild)
+        if updater.isDevelopmentBuild {
+          Text("Development builds use separate data and do not install public updates.")
+            .font(.caption).foregroundStyle(.secondary)
+        }
       }
 
       Settings.Section(label: { Text("Open", tableName: "GeneralSettings") }) {

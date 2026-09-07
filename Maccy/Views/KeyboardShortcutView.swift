@@ -17,10 +17,11 @@ struct KeyboardShortcutView: View {
 
   var body: some View {
     HStack(spacing: 1) {
-      Text(modifiers).frame(width: 55, alignment: .trailing)
+      Text(modifiers)
       Text(character).frame(width: 12, alignment: .center)
     }
     .lineLimit(1)
+    .frame(minWidth: 30, alignment: .trailing)
     .opacity(character.isEmpty ? 0 : 0.7)
   }
 }

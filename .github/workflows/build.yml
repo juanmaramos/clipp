@@ -60,6 +60,20 @@ jobs:
           echo "📌 Release tag: $RELEASE_TAG"
           echo "📌 App version: $MARKETING_VERSION ($BUILD_VERSION)"
 
+      - name: Test snippets and clipboard shortcuts
+        run: |
+          xcodebuild \
+            -project Maccy.xcodeproj \
+            -scheme Clipp \
+            -configuration Debug \
+            -derivedDataPath build \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+            -only-testing:MaccyTests/SnippetTests \
+            -only-testing:MaccyTests/HistoryItemDecoratorTests \
+            -only-testing:MaccyTests/SearchTests \
+            test
+
       - name: Import Code Signing Certificate
         env:
           CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}

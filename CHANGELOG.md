@@ -2,6 +2,25 @@
 
 All notable changes to Clipp will be documented in this file.
 
+## Unreleased
+
+### Added
+- Native Snippets settings with editable shortcuts, preview, starter examples, and import/export.
+- Local text expansion with case and boundary rules, immediate or Space-delimited triggers, app exclusions, and explicit permission status.
+- Date, time, timestamp, relative-day, and clipboard fields. Date/time formats, locale, and time zone are configurable per snippet.
+- A Snippets filter in the popup and Create snippet, Paste as plain text, and full-preview context actions.
+- Optional expansion sound and visual feedback that does not take focus.
+
+### Changed
+- Plain numbers always search. Command-1 through Command-9 activate visible history results, following the existing copy/paste preference.
+- Search excerpts keep the first match visible and use a softer highlight.
+- Debug builds use a separate application identifier and cannot install public updates.
+
+### Fixed
+- Keyboard shortcuts are handled before the search field editor.
+- Sparkle updater initialization compiles with current Swift Observation.
+- The test suite imports the renamed Clipp module.
+
 ## [1.0.1] - 2026-02-06
 
 ### Fixed

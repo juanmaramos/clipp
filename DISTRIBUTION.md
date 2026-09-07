@@ -1,221 +1,56 @@
-# Distribution Guide
+# Distribution and updates
 
-## Quick Start (No Code Signing)
+Clipp is distributed through [GitHub Releases](https://github.com/juanmaramos/clipp/releases). The release build includes Sparkle: users can enable automatic checks in **Settings → General**, or use **Check Now**. They do not need to visit GitHub for every update.
 
-For immediate testing and distribution without Apple Developer account:
+## Release pipeline
 
-1. **Build locally**:
-   ```sh
-   xcodebuild -project Maccy.xcodeproj -scheme Maccy -configuration Release
-   ```
+The checked-in `.github/workflows/build.yml` publishes automatically when code reaches `main`. A manual workflow dispatch on `main` also publishes. An appcast-only commit is ignored to avoid a release loop. Pushing a tag alone does not start this workflow.
 
-2. **Find the app**:
-   - Located in: `build/Build/Products/Release/Clipp.app`
+The workflow:
 
-3. **Create distributable**:
-   ```sh
-   cd build/Build/Products/Release
-   zip -r Clipp.zip Clipp.app
-   ```
+1. Reads `MARKETING_VERSION` and uses `GITHUB_RUN_NUMBER` as `CFBundleVersion`.
+2. Runs snippet, shortcut, and search regression tests, then builds the `Clipp` scheme with Developer ID signing.
+3. Notarizes and staples the app, then creates ZIP and DMG downloads and SHA-256 checksums.
+4. Signs the ZIP with the Sparkle Ed25519 private key.
+5. Creates the tag and public release `v<marketing-version>-build.<run-number>`.
+6. Updates `appcast.xml` on `main` with the version, download size, signature, and release notes URL.
 
-4. **Upload to GitHub Releases**:
-   - Go to: https://github.com/juanmaramos/clipp/releases
-   - Click "Create a new release"
-   - Upload `Clipp.zip`
+Merging a feature into `main` therefore publishes it. Validate and review the feature branch before merging. Keep the marketing version and changelog ready for users.
 
-5. **Users install**:
-   - Download `Clipp.zip`
-   - Extract and move to Applications
-   - Right-click → Open (first time only to bypass warning)
+Required Actions secrets are `BUILD_CERTIFICATE_BASE64`, `P12_PASSWORD`, `KEYCHAIN_PASSWORD`, `TEAM_ID`, `APPLE_ID`, `APPLE_ID_PASSWORD`, and `SPARKLE_PRIVATE_KEY`. Do not commit signing keys or put their values in build logs.
 
----
+## Update feed
 
-## Code Signing + Notarization Setup
+The production `SUFeedURL` is:
 
-When you're ready for better UX (no warnings), follow these steps:
+```
+https://raw.githubusercontent.com/juanmaramos/clipp/main/appcast.xml
+```
 
-### Prerequisites
+`SUPublicEDKey` in `Maccy/Info.plist` must match the key that signs release ZIPs. Sparkle compares the numeric build version to the installed app. A locally compiled app with a higher build number than the release feed will not see that release as an upgrade.
 
-1. **Apple Developer Account** ($99/year)
-   - Sign up at: https://developer.apple.com/programs/
+After publishing, verify that the release assets exist, the appcast points to the new ZIP with its actual byte length, and **Check Now** in an older signed release offers and installs the update. Compilation alone does not verify a real update installation.
 
-2. **Create certificates** (in Xcode):
-   - Xcode → Settings → Accounts
-   - Select your Apple ID → Manage Certificates
-   - Click "+" → "Developer ID Application"
+## Local development
 
-### GitHub Secrets Setup
-
-Add these secrets to your repository (Settings → Secrets and variables → Actions):
-
-#### 1. Export Certificate
+Use a feature branch and the `Clipp` scheme:
 
 ```sh
-# Export certificate from Keychain Access
-# File → Export Items → Save as .p12
-# Convert to base64:
-base64 -i DeveloperIDApplication.p12 | pbcopy
+xcodebuild -project Maccy.xcodeproj -scheme Clipp -configuration Debug \
+  -derivedDataPath /tmp/clipp-development \
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
 ```
 
-Add to GitHub as: `BUILD_CERTIFICATE_BASE64`
+The app is `/tmp/clipp-development/Build/Products/Debug/Clipp.app`. Debug uses the separate identifier `futurialabs.clipp.dev`, separate local data, and no public updater or automatic launch-at-login setup. Open Settings → Snippets to add examples and try expansion locally.
 
-#### 2. Other Secrets
+System-wide expansion requires Accessibility and Input Monitoring permissions for the development app itself. Ad-hoc signing is for local testing; rebuilding may require refreshing macOS permission approval. Keep a stable app location when testing permissions. Public distribution uses the signed, notarized Release build.
 
-| Secret Name | Description | Where to find |
-|-------------|-------------|---------------|
-| `P12_PASSWORD` | Password you set when exporting .p12 | You chose this |
-| `KEYCHAIN_PASSWORD` | Any password (for build keychain) | Make one up |
-| `APPLE_ID` | Your Apple ID email | developer.apple.com |
-| `APPLE_ID_PASSWORD` | App-specific password | See below |
-| `TEAM_ID` | 10-character team ID | developer.apple.com/account |
+## Snippets release checks
 
-#### 3. Generate App-Specific Password
-
-1. Go to: https://appleid.apple.com/account/manage
-2. Sign in with your Apple ID
-3. Security → App-Specific Passwords
-4. Click "+" and generate
-5. Add to GitHub as: `APPLE_ID_PASSWORD`
-
-### Enable Code Signing in Workflow
-
-Uncomment the relevant sections in `.github/workflows/build.yml`:
-- Import certificates section
-- Notarize app section
-
-### Test the Workflow
-
-```sh
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-GitHub Actions will automatically:
-1. Build the app
-2. Code sign it
-3. Notarize with Apple
-4. Create a GitHub Release
-5. Upload the notarized app
-
----
-
-## Distribution Options Comparison
-
-### Option A: GitHub Releases (Recommended)
-
-**Setup:**
-- No recurring costs (if no code signing)
-- $99/year (if code signing + notarization)
-- Full control over updates
-
-**User Experience:**
-- Download from GitHub
-- Automatic updates via Sparkle (built-in)
-- No review delays
-
-**Best for:** Open source projects, quick iterations
-
-### Option B: Your Website
-
-Same as GitHub Releases, but host the .zip on your own domain:
-- More professional appearance
-- Direct download links
-- Still uses Sparkle for updates
-
-**appcast.xml location:**
-```
-https://yourwebsite.com/clipp/appcast.xml
-```
-
-Update `Info.plist`:
-```xml
-<key>SUFeedURL</key>
-<string>https://yourwebsite.com/clipp/appcast.xml</string>
-```
-
-### Option C: Mac App Store
-
-**Setup:**
-- $99/year Apple Developer Program
-- 3-7 day review per update
-- Sandboxing required (may break features)
-
-**User Experience:**
-- Most trusted (no warnings)
-- Auto-updates via App Store
-- Easy discovery
-
-**Best for:** Maximum reach, commercial apps
-
----
-
-## Recommended Approach
-
-**Phase 1: Launch Fast** (Week 1)
-- Build locally
-- Upload to GitHub Releases
-- No code signing
-- Users right-click → Open
-
-**Phase 2: Better UX** (When ready)
-- Get Apple Developer account
-- Set up code signing + notarization
-- Automated builds via GitHub Actions
-- Users double-click to install
-
-**Phase 3: Optional** (If successful)
-- Consider Mac App Store
-- Or keep GitHub/website distribution
-
----
-
-## Building for Release
-
-### Manual Build
-
-```sh
-# Clean build
-rm -rf build/
-
-# Build release version
-xcodebuild \
-  -project Maccy.xcodeproj \
-  -scheme Maccy \
-  -configuration Release \
-  -derivedDataPath build \
-  build
-
-# App is at: build/Build/Products/Release/Clipp.app
-```
-
-### Create DMG (Optional - better than .zip)
-
-Install `create-dmg`:
-```sh
-brew install create-dmg
-```
-
-Create installer:
-```sh
-create-dmg \
-  --volname "Clipp" \
-  --window-pos 200 120 \
-  --window-size 800 400 \
-  --icon-size 100 \
-  --icon "Clipp.app" 200 190 \
-  --hide-extension "Clipp.app" \
-  --app-drop-link 600 185 \
-  "Clipp.dmg" \
-  "build/Build/Products/Release/Clipp.app"
-```
-
----
-
-## Questions?
-
-- **Do I need code signing?** No, but it's better UX
-- **Can I use website + GitHub?** Yes, host files anywhere
-- **Should I use App Store?** Not initially - too much friction
-- **How do updates work?** Sparkle (built-in) checks GitHub/website
-
-Start with GitHub Releases and no signing. Upgrade later when you have users and revenue to justify the $99/year.
+- Resolve the App Sandbox distribution decision first. The current build disables system-wide expansion because Apple does not support the required Accessibility APIs in the sandbox. A move outside the sandbox must preserve existing history and settings, then receive permission and cross-app validation.
+- Run snippet, search, keyboard shortcut, clipboard, and history migration tests.
+- Verify that bare numbers search while the displayed Command-number shortcuts activate visible results.
+- Add, edit, save, reload, import, and export snippets in the native editor.
+- Test text expansion and clipboard preservation in native and browser text fields with permissions granted.
+- Check excluded apps, secure fields, cursor moves, fast typing, optional sound, feedback, and ordinary Undo behavior in target apps.
+- Upgrade an older signed release through Sparkle before announcing availability.

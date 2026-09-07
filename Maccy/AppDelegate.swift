@@ -26,7 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationWillFinishLaunching(_ notification: Notification) { // swiftlint:disable:this function_body_length
     #if DEBUG
-    if CommandLine.arguments.contains("enable-testing") {
+    if CommandLine.arguments.contains("enable-testing") || CommandLine.arguments.contains("development-preview") {
       SPUUpdater(hostBundle: Bundle.main,
                  applicationBundle: Bundle.main,
                  userDriver: SPUStandardUserDriver(hostBundle: Bundle.main, delegate: nil),
@@ -104,6 +104,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     ) {
       ContentView()
     }
+    if !CommandLine.arguments.contains("enable-testing") { TextExpansionService.shared.start() }
+    #if DEBUG
+    if CommandLine.arguments.contains("show-snippets") { AppState.shared.openPreferences(pane: .snippets) }
+    #endif
   }
 
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -117,7 +121,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
-  private func migrateToClippDefaults() {
+  @MainActor private func migrateToClippDefaults() {
+    #if DEBUG
+    if Bundle.main.bundleIdentifier?.hasSuffix(".dev") == true { return }
+    #endif
     guard Defaults[.migrations]["2026-03-09-clipp-defaults"] != true else {
       return
     }
