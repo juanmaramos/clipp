@@ -42,13 +42,21 @@ struct StatisticsSettingsPane: View {
         Divider()
         DisclosureGroup("How we calculate this", isExpanded: $showCalculation) {
           VStack(alignment: .leading, spacing: 12) {
-            LabeledContent("Typing speed") {
+            HStack {
+              Text("Typing speed")
+              Spacer()
               Stepper("\(statistics.wordsPerMinute) words/min", value: $statistics.wordsPerMinute, in: 10...200, step: 5)
+                .accessibilityLabel("Typing speed")
+                .accessibilityValue("\(statistics.wordsPerMinute) words per minute")
                 .fixedSize()
             }
-            Text("Typing time = (expanded characters − shortcut characters) ÷ (words/min × 5). Only confirmed automatic expansions count; previews and snippets picked from the library do not. This estimates typing effort, without timing editing or corrections.")
-            LabeledContent("Saved per clipboard reuse") {
+            Text("Typing time in seconds = (expanded characters − shortcut characters) × 60 ÷ (words/min × 5). Only confirmed automatic expansions count; previews and snippets picked from the library do not. This estimates typing effort, without timing editing or corrections.")
+            HStack {
+              Text("Saved per clipboard reuse")
+              Spacer()
               Stepper("\(statistics.secondsPerReuse) seconds", value: $statistics.secondsPerReuse, in: 0...30)
+                .accessibilityLabel("Saved per clipboard reuse")
+                .accessibilityValue("\(statistics.secondsPerReuse) seconds")
                 .fixedSize()
             }
             Text("Clipboard time = reuses × seconds saved. The 5-second default is an illustrative assumption for retrieving an older item instead of finding and copying its source again. It is not a measured average. Set it to 0 to exclude it. Ordinary copies and items already on the clipboard do not count.")
