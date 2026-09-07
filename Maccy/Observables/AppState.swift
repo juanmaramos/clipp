@@ -40,6 +40,8 @@ class AppState: Sendable {
       activateSnippet(snippetResults[number - 1])
       return true
     }
+    guard !flags.isEmpty else { return false }
+    history.flushPendingSearch()
     guard let item = history.shortcutItem(for: event) else { return false }
     selection = item.id
     history.select(item, modifiers: flags)
@@ -124,6 +126,7 @@ class AppState: Sendable {
       }
       return
     }
+    history.flushPendingSearch()
     if let item = history.selectedItem, history.items.contains(item) {
       history.select(item)
     } else if let item = footer.selectedItem {

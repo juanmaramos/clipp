@@ -157,4 +157,33 @@ final class QualityTests: XCTestCase {
     popup.initEventsMonitor()
     XCTAssertTrue(popup.hasEventsMonitor)
   }
+
+  func testSelectionFlushesSearchBeforeUsingPreviousResult() {
+    let previousHistory = AppState.shared.history
+    let previousSelection = AppState.shared.selection
+    let history = History()
+    AppState.shared.history = history
+    defer {
+      AppState.shared.history = previousHistory
+      AppState.shared.selection = previousSelection
+    }
+    let firstItem = HistoryItem(contents: [])
+    firstItem.title = "First clipboard item"
+    let first = HistoryItemDecorator(firstItem)
+    let secondItem = HistoryItem(contents: [])
+    secondItem.title = "Second clipboard item"
+    let second = HistoryItemDecorator(secondItem)
+    history.all = [first, second]
+    history.items = [first, second]
+    AppState.shared.selection = first.id
+    history.searchQuery = "Second"
+    history.flushPendingSearch()
+    XCTAssertEqual(history.items.map(\.id), [second.id])
+    XCTAssertEqual(history.selectedItem?.id, second.id)
+    XCTAssertEqual(history.items.first?.shortcuts.first?.description, "⌘1")
+    history.searchQuery = "No matching entry"
+    history.flushPendingSearch()
+    XCTAssertTrue(history.items.isEmpty)
+    XCTAssertNil(history.selectedItem)
+  }
 }

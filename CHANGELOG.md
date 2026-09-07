@@ -33,6 +33,8 @@ All notable changes to Clipp will be documented in this file.
 - Re-enable the history regression suite and test migration, privacy, and storage failures.
 
 ### Fixed
+- Keep OCR work off the UI thread while applying recognized text to SwiftData on the main actor.
+- Finish pending filtering before keyboard selection and clear stale selections when a search has no results.
 - Space-delimited expansion verifies the shortcut before the destination can autocorrect it.
 - Keyboard shortcuts are handled before the search field editor.
 - Sparkle updater initialization compiles with current Swift Observation.

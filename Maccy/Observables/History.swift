@@ -27,18 +27,30 @@ class History { // swiftlint:disable:this type_body_length
   var searchQuery: String = "" {
     didSet {
       throttler.throttle { [self] in
-        updateItems(search.search(string: searchQuery, within: all))
-
-        if searchQuery.isEmpty {
-          AppState.shared.selection = unpinnedItems.first?.id
-        } else {
-          // The search throttler dispatches this callback on the main queue.
-          MainActor.assumeIsolated { AppState.shared.highlightFirst() }
-        }
-
-        AppState.shared.popup.needsResize = true
+        MainActor.assumeIsolated { applySearch() }
       }
     }
+  }
+
+  @ObservationIgnored private var appliedSearchQuery = ""
+
+  @MainActor
+  func flushPendingSearch() {
+    guard appliedSearchQuery != searchQuery else { return }
+    throttler.cancel()
+    applySearch()
+  }
+
+  @MainActor
+  private func applySearch() {
+    updateItems(search.search(string: searchQuery, within: all))
+    appliedSearchQuery = searchQuery
+    if searchQuery.isEmpty { AppState.shared.selection = unpinnedItems.first?.id }
+    else {
+      AppState.shared.selection = nil
+      AppState.shared.highlightFirst()
+    }
+    AppState.shared.popup.needsResize = true
   }
 
   var pressedShortcutItem: HistoryItemDecorator? {
