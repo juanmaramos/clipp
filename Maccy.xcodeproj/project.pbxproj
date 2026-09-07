@@ -114,7 +114,6 @@
 		DAA5ACB52C1B803000B58513 /* GeneralSettings.strings in Resources */ = {isa = PBXBuildFile; fileRef = DAA5ACB32C1B803000B58513 /* GeneralSettings.strings */; };
 		DAA5ACCA2C1BEE8A00B58513 /* SoftwareUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA5ACC92C1BEE8A00B58513 /* SoftwareUpdater.swift */; };
 		DAAEB196219694AE00A7883C /* About.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAAEB195219694AE00A7883C /* About.swift */; };
-		DAB082962A2B7B850053E463 /* AppStoreReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB082952A2B7B850053E463 /* AppStoreReview.swift */; };
 		DABDE97F2974706C005B32E9 /* KeyboardLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABDE97E2974706C005B32E9 /* KeyboardLayout.swift */; };
 		DAC0CA3E2C88E7A4003BF498 /* Fuse in Frameworks */ = {isa = PBXBuildFile; productRef = DAC0CA3D2C88E7A4003BF498 /* Fuse */; };
 		DAC14124232367B200FCFA30 /* Search.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAC14123232367B200FCFA30 /* Search.swift */; };
@@ -133,6 +132,10 @@
 		19003348B5F3877A5B7F8475 /* SnippetsSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571444440A28E338191B9F00 /* SnippetsSettingsPane.swift */; };
 		FE0A3F08037F129373FCABB7 /* TextExpansionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39975590682AF0302F9C2D66 /* TextExpansionService.swift */; };
 		434C495050534E495050455442 /* SnippetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434C495050534E495050455452; };
+		434C4950505155414C49544231 /* QualityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434C4950505155414C49545231; };
+		434C495050535441545300002 /* UsageStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434C495050535441545300001; };
+		434C495050535441545300012 /* StatisticsSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434C495050535441545300011; };
+		434C495050535441545300022 /* StatisticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434C495050535441545300021; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -480,7 +483,6 @@
 		DAA5ACC82C1BA35E00B58513 /* uk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = uk; path = uk.lproj/GeneralSettings.strings; sourceTree = "<group>"; };
 		DAA5ACC92C1BEE8A00B58513 /* SoftwareUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoftwareUpdater.swift; sourceTree = "<group>"; };
 		DAAEB195219694AE00A7883C /* About.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = About.swift; sourceTree = "<group>"; };
-		DAB082952A2B7B850053E463 /* AppStoreReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreReview.swift; sourceTree = "<group>"; };
 		DAB6265F2CAD7E4F001B720E /* hu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hu; path = hu.lproj/PinsSettings.strings; sourceTree = "<group>"; };
 		DAB626602CAD7E59001B720E /* hu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hu; path = hu.lproj/AdvancedSettings.strings; sourceTree = "<group>"; };
 		DAB626612CAD7E6B001B720E /* hu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hu; path = hu.lproj/AppearanceSettings.strings; sourceTree = "<group>"; };
@@ -530,6 +532,10 @@
 		571444440A28E338191B9F00 /* SnippetsSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/SnippetsSettingsPane.swift; sourceTree = SOURCE_ROOT; };
 		39975590682AF0302F9C2D66 /* TextExpansionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/TextExpansionService.swift; sourceTree = SOURCE_ROOT; };
 		434C495050534E495050455452 /* SnippetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaccyTests/SnippetTests.swift; sourceTree = SOURCE_ROOT; };
+		434C4950505155414C49545231 /* QualityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaccyTests/QualityTests.swift; sourceTree = SOURCE_ROOT; };
+		434C495050535441545300001 /* UsageStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Statistics/UsageStatistics.swift; sourceTree = SOURCE_ROOT; };
+		434C495050535441545300011 /* StatisticsSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Statistics/StatisticsSettingsPane.swift; sourceTree = SOURCE_ROOT; };
+		434C495050535441545300021 /* StatisticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaccyTests/StatisticsTests.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -763,6 +769,10 @@
 		DAEE38451E3DBEB100DD2966 /* Maccy */ = {
 			isa = PBXGroup;
 			children = (
+				434C495050535441545300001 /* UsageStatistics.swift */,
+				434C495050535441545300011 /* StatisticsSettingsPane.swift */,
+				434C495050535441545300021 /* StatisticsTests.swift */,
+				434C4950505155414C49545231 /* QualityTests.swift */,
 				434C495050534E495050455452 /* SnippetTests.swift */,
 				0FC420F1331347F003A34147 /* Snippet.swift */,
 				D770E5C0C6D1F697D3B581E3 /* SnippetLibrary.swift */,
@@ -779,7 +789,6 @@
 				DAAEB195219694AE00A7883C /* About.swift */,
 				DA6D98E12AEABE03008A77CE /* Accessibility.swift */,
 				DAEE38461E3DBEB100DD2966 /* AppDelegate.swift */,
-				DAB082952A2B7B850053E463 /* AppStoreReview.swift */,
 				2FB5BC9F2CD8F73C008B33F4 /* ApplicationImage.swift */,
 				DA555F072CF0F98F009608BD /* ApplicationImageCache.swift */,
 				DA0EF1871E444B2A00E58577 /* Clipboard.swift */,
@@ -1020,6 +1029,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				434C4950505155414C49544231 /* QualityTests.swift in Sources */,
+				434C495050535441545300022 /* StatisticsTests.swift in Sources */,
 				434C495050534E495050455442 /* SnippetTests.swift in Sources */,
 				DAFE2DE9268A9B1B00990986 /* HistoryItemTests.swift in Sources */,
 				DA3CE8001E44A62500B3AA98 /* ClipboardTests.swift in Sources */,
@@ -1038,12 +1049,13 @@
 				4E6932CA4F014DB798B5ACC9 /* Snippet.swift in Sources */,
 				2A16BCB3DD30896A8CC83B85 /* SnippetLibrary.swift in Sources */,
 				8C2DC0FAA9F9F684E094F0A0 /* SnippetResultsView.swift in Sources */,
+				434C495050535441545300002 /* UsageStatistics.swift in Sources */,
+				434C495050535441545300012 /* StatisticsSettingsPane.swift in Sources */,
 				19003348B5F3877A5B7F8475 /* SnippetsSettingsPane.swift in Sources */,
 				FE0A3F08037F129373FCABB7 /* TextExpansionService.swift in Sources */,
 				DA19691C2C3F3EAC00258481 /* Collection+Surrounding.swift in Sources */,
 				DA1969142C3F11D600258481 /* PreviewItemView.swift in Sources */,
 				DAA072D52C40AC52006DDFD2 /* HistoryListView.swift in Sources */,
-				DAB082962A2B7B850053E463 /* AppStoreReview.swift in Sources */,
 				2FB5BCA02CD8F73F008B33F4 /* ApplicationImage.swift in Sources */,
 				DA13D7D22C19F91B00FA9E23 /* Defaults.Keys+Names.swift in Sources */,
 				DA1969102C3F0AAC00258481 /* KeyShortcut.swift in Sources */,
@@ -1685,7 +1697,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 60;
+				CURRENT_PROJECT_VERSION = 61;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = T569L7X7QJ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1701,7 +1713,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.6.1;
+				MARKETING_VERSION = 2.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = futurialabs.clipp.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1721,7 +1733,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 60;
+				CURRENT_PROJECT_VERSION = 61;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = T569L7X7QJ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1737,7 +1749,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.6.1;
+				MARKETING_VERSION = 2.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = futurialabs.clipp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

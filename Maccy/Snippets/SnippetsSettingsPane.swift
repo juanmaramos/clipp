@@ -12,6 +12,8 @@ struct SnippetsSettingsPane: View {
   @State private var testText = ""
   @State private var testResult = ""
   @State private var examplesShown = false
+  @State private var confirmDelete = false
+  @State private var customFormats = false
   @State private var excludedAppsShown = false
   @State private var exampleSelection: Set<String> = ["ddate", "ttime", ";stamp"]
   @State private var pendingSelection: UUID?
@@ -37,9 +39,9 @@ struct SnippetsSettingsPane: View {
     VStack(spacing: 0) {
       VStack(alignment: .leading, spacing: 8) {
         HStack {
-          Toggle("Enable text expansion", isOn: $enabled).disabled(service.isSandboxed)
+          Toggle("Expand typed shortcuts", isOn: $enabled).disabled(service.isSandboxed)
           Spacer()
-          Button("Excluded apps…") { excludedAppsShown = true }
+          if enabled { Button("Excluded apps…") { excludedAppsShown = true } }
         }
         if enabled || service.isSandboxed {
           HStack {
@@ -78,7 +80,8 @@ struct SnippetsSettingsPane: View {
           }
           .listStyle(.plain)
           HStack {
-            Button { requestSelection(nil) } label: { Image(systemName: "plus") }.help("New snippet")
+            Button("New snippet", systemImage: "plus") { requestSelection(nil) }
+            if library.snippets.isEmpty { Button("Examples…") { examplesShown = true } }
             Menu {
               Button("Add examples…") { examplesShown = true }
               Button("Import snippets…") { importSnippets() }
@@ -98,19 +101,12 @@ struct SnippetsSettingsPane: View {
                 Button("Duplicate") {
                   draft.id = UUID(); draft.name += " copy"; draft.abbreviation = ""; draft.isEnabled = false; isNew = true
                 }
-                Button(role: .destructive) {
-                  if let snippet = library.snippets.first(where: { $0.id == draft.id }) {
-                    library.delete(snippet); loadSelection(library.editorSelection)
-                  }
-                } label: { Image(systemName: "trash") }.help("Delete snippet")
+                Button(role: .destructive) { confirmDelete = true } label: { Image(systemName: "trash") }
+                  .help("Delete snippet").accessibilityLabel("Delete snippet")
               }
             }
             LabeledContent("Name") { TextField("Email", text: $draft.name) }
             LabeledContent("Typed shortcut") { TextField(";em", text: $draft.abbreviation).font(.body.monospaced()) }
-            Picker("Expand", selection: $draft.waitsForSpace) {
-              Text("Immediately").tag(false)
-              Text("After Space · keep space").tag(true)
-            }
             VStack(alignment: .leading, spacing: 7) {
               HStack {
                 Text("Expansion")
@@ -129,15 +125,19 @@ struct SnippetsSettingsPane: View {
                 .overlay(RoundedRectangle(cornerRadius: 5).stroke(.quaternary))
             }
             if hasDate { dateOptions }
-            DisclosureGroup("Matching") {
-              VStack(alignment: .leading) {
+            DisclosureGroup("Automatic expansion") {
+              VStack(alignment: .leading, spacing: 8) {
+                Toggle("Enable this typed shortcut", isOn: $draft.isEnabled)
+                Picker("Expand", selection: $draft.waitsForSpace) {
+                  Text("Immediately").tag(false)
+                  Text("After Space · keep space").tag(true)
+                }
                 Toggle("Match case", isOn: $draft.caseSensitive)
                 Toggle("Only after whitespace or at the start of a field", isOn: $draft.requiresWordBoundary)
+                Text("Snippets are always available from the Clipp picker, even when automatic expansion is off.")
+                  .font(.caption).foregroundStyle(.secondary)
               }.padding(.top, 6)
             }
-            Toggle("Expand this shortcut automatically", isOn: $draft.isEnabled)
-            Text("Disabled snippets remain available from the Snippets list in Clipp.")
-              .font(.caption).foregroundStyle(.secondary)
             if let validation, hasChanges {
               Text(validation).font(.caption).foregroundStyle(.red)
             }
@@ -161,6 +161,7 @@ struct SnippetsSettingsPane: View {
                   .frame(maxWidth: .infinity, alignment: .leading)
               }
             }
+            DisclosureGroup("Try this shortcut") {
             HStack {
               Text("Try it here").font(.headline)
               Spacer()
@@ -188,13 +189,16 @@ struct SnippetsSettingsPane: View {
               }
             Text(testResult.isEmpty ? "This test works even when global expansion is off." : testResult)
               .font(.caption).foregroundStyle(.secondary)
+            }
+
           }
           .textFieldStyle(.roundedBorder)
           .padding(18)
         }.frame(minWidth: 430)
       }
       Divider()
-      HStack(spacing: 20) {
+      DisclosureGroup("Expansion feedback") {
+        HStack(spacing: 20) {
         Picker("Visual feedback", selection: $feedback) {
           Text("Subtle highlight").tag("highlight")
           Text("Confirmation badge").tag("badge")
@@ -202,9 +206,10 @@ struct SnippetsSettingsPane: View {
         }.frame(width: 290)
         Toggle("Play a soft pop", isOn: $sound)
         Spacer()
+        }
       }.padding(14)
     }
-    .frame(width: 780, height: 650)
+    .frame(width: 740, height: min(620, (NSScreen.main?.visibleFrame.height ?? 760) - 140))
     .onAppear {
       library.reload()
       if !editorLoaded {
@@ -225,6 +230,14 @@ struct SnippetsSettingsPane: View {
         else { loadSelection(pendingSelection) }
       }
     }
+    .alert("Delete “\(savedDraft.name)”?", isPresented: $confirmDelete) {
+      Button("Cancel", role: .cancel) {}
+      Button("Delete snippet", role: .destructive) {
+        if let snippet = library.snippets.first(where: { $0.id == draft.id }), library.delete(snippet) {
+          loadSelection(library.editorSelection)
+        }
+      }
+    } message: { Text("This removes the saved snippet and its typed shortcut. This action cannot be undone.") }
     .alert("Snippets", isPresented: Binding(get: { library.message != nil }, set: { if !$0 { library.message = nil } })) {
       Button("OK") { library.message = nil }
     } message: { Text(library.message ?? "") }
@@ -233,29 +246,47 @@ struct SnippetsSettingsPane: View {
   }
 
   private var dateOptions: some View {
-    DisclosureGroup("Date and time options") {
+    DisclosureGroup("Date and time") {
       VStack(spacing: 10) {
-        LabeledContent("Date format") {
-          TextField("yyyy-MM-dd", text: $draft.dateFormat)
-          Menu("Presets") {
+        LabeledContent("Date") {
+          Menu(formatExample(draft.dateFormat)) {
             ForEach(["yyyy-MM-dd", "dd/MM/yyyy", "MM/dd/yyyy", "d MMMM yyyy", "EEEE, d MMMM yyyy"], id: \.self) { value in
-              Button(value) { draft.dateFormat = value }
+              Button(formatExample(value)) { draft.dateFormat = value }
             }
           }
         }
-        LabeledContent("Time format") {
-          TextField("HH:mm", text: $draft.timeFormat)
-          Menu("Presets") {
-            ForEach(["HH:mm", "HH:mm:ss", "h:mm a"], id: \.self) { value in Button(value) { draft.timeFormat = value } }
+        LabeledContent("Time") {
+          Menu(formatExample(draft.timeFormat)) {
+            ForEach(["HH:mm", "HH:mm:ss", "h:mm a"], id: \.self) { value in
+              Button(formatExample(value)) { draft.timeFormat = value }
+            }
           }
         }
-        LabeledContent("Days from today") { TextField("0", value: $draft.dayOffset, format: .number).frame(width: 90) }
-        Text("Use 1 for tomorrow or −1 for yesterday. Time-only fields use the current time.")
-          .font(.caption).foregroundStyle(.secondary)
-        LabeledContent("Locale") { TextField("System default, or en_GB", text: $draft.localeIdentifier) }
-        LabeledContent("Time zone") { TextField("System default, or Europe/Madrid", text: $draft.timeZoneIdentifier) }
+        Picker("Day", selection: $draft.dayOffset) {
+          Text("Today").tag(0)
+          Text("Tomorrow").tag(1)
+          Text("Yesterday").tag(-1)
+          if ![-1, 0, 1].contains(draft.dayOffset) { Text("\(draft.dayOffset) days from today").tag(draft.dayOffset) }
+        }
+        DisclosureGroup("Custom formats", isExpanded: $customFormats) {
+          VStack(spacing: 8) {
+            LabeledContent("Date pattern") { TextField("yyyy-MM-dd", text: $draft.dateFormat) }
+            LabeledContent("Time pattern") { TextField("HH:mm", text: $draft.timeFormat) }
+            LabeledContent("Days from today") { TextField("0", value: $draft.dayOffset, format: .number) }
+            LabeledContent("Locale") { TextField("System default, or en_GB", text: $draft.localeIdentifier) }
+            LabeledContent("Time zone") { TextField("System default, or Europe/Madrid", text: $draft.timeZoneIdentifier) }
+          }.padding(.top, 8)
+        }
       }.padding(.top, 8)
     }
+  }
+
+  private func formatExample(_ pattern: String) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = draft.localeIdentifier.isEmpty ? .current : Locale(identifier: draft.localeIdentifier)
+    formatter.timeZone = draft.timeZoneIdentifier.isEmpty ? .current : TimeZone(identifier: draft.timeZoneIdentifier)
+    formatter.dateFormat = pattern
+    return formatter.string(from: .now)
   }
 
   private var examplesSheet: some View {
@@ -346,7 +377,7 @@ private struct ExpansionExcludedAppsView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
       Text("Don’t expand in these apps").font(.headline)
-      Text("Clipp also respects the application rules in Ignore settings.").foregroundStyle(.secondary)
+      Text("Clipp also respects excluded apps in History settings.").foregroundStyle(.secondary)
       List(excluded, id: \.self) { identifier in
         HStack {
           Text(identifier)

@@ -10,6 +10,8 @@ struct GeneralSettingsPane: View {
   )
 
   @Default(.searchMode) private var searchMode
+  @Default(.pasteByDefault) private var pasteByDefault
+  @Default(.removeFormattingByDefault) private var removeFormatting
 
   @State private var copyModifier = HistoryItemAction.copy.modifierFlags.description
   @State private var pasteModifier = HistoryItemAction.paste.modifierFlags.description
@@ -92,17 +94,19 @@ struct GeneralSettingsPane: View {
         bottomDivider: true,
         label: { Text("Behavior", tableName: "GeneralSettings") }
       ) {
-        Defaults.Toggle(key: .pasteByDefault) {
-          Text("PasteAutomatically", tableName: "GeneralSettings")
+        Picker("When selecting an item", selection: $pasteByDefault) {
+          Text("Paste").tag(true)
+          Text("Copy").tag(false)
+        }.onChange(of: pasteByDefault) { refreshModifiers(pasteByDefault) }
+        Picker("Text formatting", selection: $removeFormatting) {
+          Text("Plain text").tag(true)
+          Text("Keep formatting").tag(false)
+        }.onChange(of: removeFormatting) { refreshModifiers(removeFormatting) }
+        if pasteByDefault && !Accessibility.allowed {
+          Button("Set up pasting…") { Accessibility.openSettings() }
+          Text("Until Accessibility is allowed, selected items are copied for you to paste with ⌘V.")
+            .font(.caption).foregroundStyle(.secondary)
         }
-        .onChange(refreshModifiers)
-        .fixedSize()
-
-        Defaults.Toggle(key: .removeFormattingByDefault) {
-          Text("PasteWithoutFormatting", tableName: "GeneralSettings")
-        }
-        .onChange(refreshModifiers)
-        .fixedSize()
 
         Text(String(
           format: NSLocalizedString("Modifiers", tableName: "GeneralSettings", comment: ""),

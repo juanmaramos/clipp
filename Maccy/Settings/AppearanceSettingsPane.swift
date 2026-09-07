@@ -29,24 +29,10 @@ struct AppearanceSettingsPane: View {
     return formatter
   }()
 
-  private let numberOfItemsFormatter: NumberFormatter = {
-    let formatter = NumberFormatter()
-    formatter.minimum = 0
-    formatter.maximum = 100
-    return formatter
-  }()
-
-  private let titleLengthFormatter: NumberFormatter = {
-    let formatter = NumberFormatter()
-    formatter.minimum = 30
-    formatter.maximum = 200
-    return formatter
-  }()
-
   private let previewDelayFormatter: NumberFormatter = {
     let formatter = NumberFormatter()
     formatter.minimum = 200
-    formatter.maximum = 100_000
+    formatter.maximum = 3000
     return formatter
   }()
 
@@ -107,7 +93,7 @@ struct AppearanceSettingsPane: View {
           TextField("", value: $previewDelay, formatter: previewDelayFormatter)
             .frame(width: 120)
             .help(Text("PreviewDelayTooltip", tableName: "AppearanceSettings"))
-          Stepper("", value: $previewDelay, in: 200...100_000)
+          Stepper("", value: $previewDelay, in: 200...3000)
             .labelsHidden()
         }
       }

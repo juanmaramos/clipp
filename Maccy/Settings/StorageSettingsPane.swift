@@ -3,64 +3,11 @@ import Defaults
 import Settings
 
 struct StorageSettingsPane: View {
-  @Observable
-  class ViewModel {
-    var saveFiles = false {
-      didSet {
-        Defaults.withoutPropagation {
-          if saveFiles {
-            Defaults[.enabledPasteboardTypes].formUnion(StorageType.files.types)
-          } else {
-            Defaults[.enabledPasteboardTypes].subtract(StorageType.files.types)
-          }
-        }
-      }
-    }
-
-    var saveImages = false {
-      didSet {
-        Defaults.withoutPropagation {
-          if saveImages {
-            Defaults[.enabledPasteboardTypes].formUnion(StorageType.images.types)
-          } else {
-            Defaults[.enabledPasteboardTypes].subtract(StorageType.images.types)
-          }
-        }
-      }
-    }
-
-    var saveText = false {
-      didSet {
-        Defaults.withoutPropagation {
-          if saveText {
-            Defaults[.enabledPasteboardTypes].formUnion(StorageType.text.types)
-          } else {
-            Defaults[.enabledPasteboardTypes].subtract(StorageType.text.types)
-          }
-        }
-      }
-    }
-
-    private var observer: Defaults.Observation?
-
-    init() {
-      observer = Defaults.observe(.enabledPasteboardTypes) { change in
-        self.saveFiles = change.newValue.isSuperset(of: StorageType.files.types)
-        self.saveImages = change.newValue.isSuperset(of: StorageType.images.types)
-        self.saveText = change.newValue.isSuperset(of: StorageType.text.types)
-      }
-    }
-
-    deinit {
-      observer?.invalidate()
-    }
-  }
-
   @Default(.size) private var size
   @Default(.sortBy) private var sortBy
 
-  @State private var viewModel = ViewModel()
-  @State private var storageSize = Storage.shared.size
+  @Default(.enabledPasteboardTypes) private var enabledTypes
+  @State private var exclusionsShown = false
 
   private let sizeFormatter: NumberFormatter = {
     let formatter = NumberFormatter()
@@ -76,15 +23,15 @@ struct StorageSettingsPane: View {
         label: { Text("Save", tableName: "StorageSettings") }
       ) {
         Toggle(
-          isOn: $viewModel.saveFiles,
+          isOn: binding(for: StorageType.files),
           label: { Text("Files", tableName: "StorageSettings") }
         )
         Toggle(
-          isOn: $viewModel.saveImages,
+          isOn: binding(for: StorageType.images),
           label: { Text("Images", tableName: "StorageSettings") }
         )
         Toggle(
-          isOn: $viewModel.saveText,
+          isOn: binding(for: StorageType.text),
           label: { Text("Text", tableName: "StorageSettings") }
         )
         Text("SaveDescription", tableName: "StorageSettings")
@@ -99,13 +46,7 @@ struct StorageSettingsPane: View {
             .help(Text("SizeTooltip", tableName: "StorageSettings"))
           Stepper("", value: $size, in: 1...999)
             .labelsHidden()
-          Text(storageSize)
-            .controlSize(.small)
-            .foregroundStyle(.gray)
-            .help(Text("CurrentSizeTooltip", tableName: "StorageSettings"))
-            .onAppear {
-              storageSize = Storage.shared.size
-            }
+
         }
       }
 
@@ -119,7 +60,25 @@ struct StorageSettingsPane: View {
         .frame(width: 160, alignment: .leading)
         .help(Text("SortByTooltip", tableName: "StorageSettings"))
       }
+      Settings.Section(title: "Capture & privacy") {
+        AdvancedSettingsPane()
+        Button("Excluded apps and rules…") { exclusionsShown = true }
+      }
+
     }
+    .sheet(isPresented: $exclusionsShown) {
+      VStack {
+        IgnoreSettingsPane()
+        Button("Done") { exclusionsShown = false }.keyboardShortcut(.defaultAction)
+      }.padding()
+    }
+  }
+
+  private func binding(for storageType: StorageType) -> Binding<Bool> {
+    Binding(get: { enabledTypes.isSuperset(of: storageType.types) }, set: { enabled in
+      if enabled { enabledTypes.formUnion(storageType.types) }
+      else { enabledTypes.subtract(storageType.types) }
+    })
   }
 }
 

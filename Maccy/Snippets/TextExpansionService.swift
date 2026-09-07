@@ -2,7 +2,6 @@ import AppKit
 import Carbon
 import Defaults
 import Observation
-import Sauce
 import Security
 
 @MainActor
@@ -135,16 +134,34 @@ final class TextExpansionService {
       matcher.reset(); return unchanged
     }
     let text = String(utf16CodeUnits: characters, count: length)
-    guard let match = matcher.append(text, snippets: SnippetLibrary.shared.definitions) else { return unchanged }
+    guard var match = matcher.append(text, snippets: SnippetLibrary.shared.definitions) else { return unchanged }
+    // Keep Space away from the target's autocorrection until the abbreviation is replaced.
+    let delimiterEvent = match.snippet.waitsForSpace ? event.copy() : nil
+    if match.snippet.waitsForSpace {
+      guard delimiterEvent != nil else { return unchanged }
+      match.typedText.removeLast()
+    }
     isReplacing = true
     transactionTask = Task {
-      // Let the final physical character reach the target before selecting the complete abbreviation.
-      try? await Task.sleep(for: .milliseconds(20))
-      await replace(match, in: field)
+      var attempted = false
+      // Wait for the target to commit the final character; never select an unverified range.
+      for _ in 0..<20 {
+        try? await Task.sleep(for: .milliseconds(10))
+        guard let current = FocusedText.current(), CFEqual(current.element, field.element) else { break }
+        if let selection = current.selection, let value = current.value, selection.length == 0,
+           Self.replacementRange(value: value, caret: selection.location, match: match) != nil {
+          attempted = await replace(match, in: current)
+          break
+        }
+      }
+      if !attempted, let delimiterEvent {
+        delimiterEvent.setIntegerValueField(.eventSourceUserData, value: Self.eventTag)
+        delimiterEvent.post(tap: .cgSessionEventTap)
+      }
       isReplacing = false
       flushEvents()
     }
-    return unchanged
+    return delimiterEvent == nil ? unchanged : nil
   }
 
   private func allowsApplication(_ identifier: String) -> Bool {
@@ -152,38 +169,41 @@ final class TextExpansionService {
     return Defaults[.ignoreAllAppsExceptListed] ? listed : !listed
   }
 
-  private func replace(_ match: SnippetMatcher.Match, in original: FocusedText) async {
+  private func replace(_ match: SnippetMatcher.Match, in original: FocusedText) async -> Bool {
     guard Defaults[.textExpansionEnabled], !IsSecureEventInputEnabled(),
           let field = FocusedText.current(), CFEqual(field.element, original.element),
           let selection = field.selection, selection.length == 0,
           let value = field.value,
-          let range = Self.replacementRange(value: value, caret: selection.location, match: match) else { return }
+          let range = Self.replacementRange(value: value, caret: selection.location, match: match) else { return false }
     let pasteboard = NSPasteboard.general
     guard let expansion = SnippetTemplate.render(match.snippet, clipboard: pasteboard.string(forType: .string) ?? "") else {
-      status = SnippetTemplate.sizeError; return
+      status = SnippetTemplate.sizeError; return false
     }
     let rendered = expansion + match.suffix
-    guard rendered.utf16.count <= 100_000 else { status = "Expansion is too large to insert."; return }
+    guard rendered.utf16.count <= 100_000 else { status = "Expansion is too large to insert."; return false }
     let snapshot = PasteboardSnapshot(pasteboard)
     guard snapshot.isComplete, pasteboard.changeCount == snapshot.changeCount else {
       status = "The current clipboard cannot be preserved. Shortcut left unchanged."
-      return
+      return false
     }
-    guard field.setSelection(range) else { status = "This text field does not support shortcut replacement."; return }
+    guard field.setSelection(range) else { status = "This text field does not support shortcut replacement."; return false }
     let ownedCount = writeTemporary(rendered, to: pasteboard)
     postPaste()
     var inserted = false
-    for _ in 0..<25 {
+    for _ in 0..<50 {
       try? await Task.sleep(for: .milliseconds(10))
       if field.contains(rendered, at: range.location) { inserted = true; break }
     }
     // Never replace a clipboard item copied by the user or another application during expansion.
     if pasteboard.changeCount == ownedCount { snapshot.restore(to: pasteboard); Clipboard.shared.changeCount = pasteboard.changeCount }
     if inserted {
+      UsageStatistics.shared.recordExpansion(expandedCharacters: expansion.count, abbreviationCharacters: match.snippet.abbreviation.count)
       showFeedback(name: match.snippet.name, bounds: field.bounds(for: CFRange(location: range.location, length: rendered.utf16.count)))
     } else {
       status = "The target app did not confirm insertion. Check its text before continuing."
     }
+    // Once paste has been posted, never replay a delimiter that might arrive after it.
+    return true
   }
 
   static func replacementRange(value: String, caret: Int, match: SnippetMatcher.Match) -> CFRange? {
@@ -200,7 +220,11 @@ final class TextExpansionService {
   }
 
   func pasteSnippet(_ text: String, name: String) {
-    guard AXIsProcessTrusted() else { status = "Allow Accessibility to paste snippets."; return }
+    guard Accessibility.allowed else {
+      Clipboard.shared.copy(text)
+      _ = Accessibility.check()
+      return
+    }
     guard !isReplacing, text.utf16.count <= 100_000 else { return }
     isReplacing = true
     transactionTask = Task {
@@ -209,15 +233,12 @@ final class TextExpansionService {
       guard !NSApp.isActive, !IsSecureEventInputEnabled() else { return }
       let field = FocusedText.current()
       let insertionLocation = field?.selection?.location
-      let pasteboard = NSPasteboard.general
-      let snapshot = PasteboardSnapshot(pasteboard)
-      guard snapshot.isComplete, pasteboard.changeCount == snapshot.changeCount else {
-        status = "The current clipboard cannot be preserved."; return
-      }
-      let ownedCount = writeTemporary(text, to: pasteboard)
+      Clipboard.shared.copy(text)
       postPaste()
-      try? await Task.sleep(for: .milliseconds(250))
-      if pasteboard.changeCount == ownedCount { snapshot.restore(to: pasteboard); Clipboard.shared.changeCount = pasteboard.changeCount }
+      for _ in 0..<50 {
+        try? await Task.sleep(for: .milliseconds(10))
+        if let field, let insertionLocation, field.contains(text, at: insertionLocation) { break }
+      }
       if let field, let insertionLocation, field.contains(text, at: insertionLocation) {
         showFeedback(name: name, bounds: field.bounds(for: CFRange(location: insertionLocation, length: text.utf16.count)))
       }
@@ -233,14 +254,7 @@ final class TextExpansionService {
   }
 
   private func postPaste() {
-    let source = CGEventSource(stateID: .privateState)
-    let key = Sauce.shared.keyCode(for: .v)
-    for down in [true, false] {
-      let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down)
-      event?.flags = .maskCommand
-      event?.setIntegerValueField(.eventSourceUserData, value: Self.eventTag)
-      event?.post(tap: .cgSessionEventTap)
-    }
+    Clipboard.shared.postPaste(eventTag: Self.eventTag)
   }
 
   private func flushEvents() {

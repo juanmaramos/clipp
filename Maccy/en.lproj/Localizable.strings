@@ -17,8 +17,8 @@
 "accessibility_alert_comment" = "Grant access to this application in {pane}, located in {settings}.\n\nClick + button, select Clipp, and toggle on the checkbox next to it.";
 "accessibility_alert_deny" = "Deny";
 "accessibility_alert_open" = "Open System Preferences";
-"clear_alert_message" = "Are you sure you want to clear the history?";
-"clear_alert_comment" = "You can't undo this action.";
+"clear_alert_message" = "Clear unpinned clipboard history?";
+"clear_alert_comment" = "Pins and snippets will be kept. You can’t undo this action.";
 "clear_alert_cancel" = "Cancel";
 "clear_alert_confirm" = "Clear";
 "key_used_error" = "Key is already used.";
@@ -28,3 +28,6 @@
 "system_settings_pane" = "Privacy & Security settings";
 "system_preferences_name" = "System Preferences";
 "system_preferences_pane" = "Security & Privacy preferences";
+
+"clear_all_alert_message" = "Clear clipboard history and pins?";
+"clear_all_alert_comment" = "Snippets will be kept. You can’t undo this action.";

@@ -43,6 +43,7 @@ class Popup {
   var footerHeight: CGFloat = 0
 
   private var eventsMonitor: Any?
+  var hasEventsMonitor: Bool { eventsMonitor != nil }
 
   private var state: PopupState = .toggle
 
@@ -68,6 +69,7 @@ class Popup {
     guard let eventsMonitor else { return }
 
     NSEvent.removeMonitor(eventsMonitor)
+    self.eventsMonitor = nil
   }
 
   func open(height: CGFloat, at popupPosition: PopupPosition = Defaults[.popupPosition]) {

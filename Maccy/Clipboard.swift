@@ -10,7 +10,7 @@ class Clipboard {
   private var onNewCopyHooks: [OnNewCopyHook] = []
   var changeCount: Int
 
-  private let pasteboard = NSPasteboard.general
+  let pasteboard: NSPasteboard
 
   private var timer: Timer?
 
@@ -35,7 +35,8 @@ class Clipboard {
 
   private var sourceApp: NSRunningApplication? { NSWorkspace.shared.frontmostApplication }
 
-  init() {
+  init(pasteboard: NSPasteboard = CommandLine.arguments.contains("enable-testing") ? .withUniqueName() : .general) {
+    self.pasteboard = pasteboard
     changeCount = pasteboard.changeCount
   }
 
@@ -47,7 +48,19 @@ class Clipboard {
     onNewCopyHooks = []
   }
 
+  func contains(_ item: HistoryItem) -> Bool {
+    // Compare the primary payload, not source-app metadata or generated representations.
+    for type: NSPasteboard.PasteboardType in [.fileURL, .string, .png, .tiff, .rtf, .html] {
+      let saved = item.contents.filter { $0.type == type.rawValue }.compactMap(\.value)
+      guard !saved.isEmpty else { continue }
+      let current = pasteboard.pasteboardItems?.compactMap { $0.data(forType: type) } ?? []
+      return saved.count == current.count && saved.allSatisfy { current.contains($0) }
+    }
+    return true // Unknown payloads are not credited as recovered clipboard items.
+  }
+
   func start() {
+    timer?.invalidate()
     timer = Timer.scheduledTimer(
       timeInterval: Defaults[.clipboardCheckInterval],
       target: self,
@@ -109,8 +122,13 @@ class Clipboard {
   }
 
   // Based on https://github.com/Clipy/Clipy/blob/develop/Clipy/Sources/Services/PasteService.swift.
+  @MainActor
   func paste() {
-    Accessibility.check()
+    guard Accessibility.check() else { return }
+    postPaste()
+  }
+
+  func postPaste(eventTag: Int64 = 0) {
 
     // Add flag that left/right modifier key has been pressed.
     // See https://github.com/TermiT/Flycut/pull/18 for details.
@@ -133,6 +151,8 @@ class Clipboard {
     let keyVUp = CGEvent(keyboardEventSource: source, virtualKey: vCode, keyDown: false)
     keyVDown?.flags = cmdFlag
     keyVUp?.flags = cmdFlag
+    keyVDown?.setIntegerValueField(.eventSourceUserData, value: eventTag)
+    keyVUp?.setIntegerValueField(.eventSourceUserData, value: eventTag)
     keyVDown?.post(tap: .cgSessionEventTap)
     keyVUp?.post(tap: .cgSessionEventTap)
   }
@@ -154,14 +174,11 @@ class Clipboard {
 
     changeCount = pasteboard.changeCount
 
-    if Defaults[.ignoreEvents] {
-      if Defaults[.ignoreOnlyNextEvent] {
-        Defaults[.ignoreEvents] = false
-        Defaults[.ignoreOnlyNextEvent] = false
-      }
-
+    if Defaults[.ignoreOnlyNextEvent] {
+      Defaults[.ignoreOnlyNextEvent] = false
       return
     }
+    if Defaults[.ignoreEvents] { return }
 
     // Reading types on NSPasteboard gives all the available
     // types - even the ones that are not present on the NSPasteboardItem.
@@ -214,7 +231,8 @@ class Clipboard {
 
     if #unavailable(macOS 15.0) {
       // On macOS 14 the history item needs to be inserted into storage directly after creating it.
-      try? History.shared.insertIntoStorage(historyItem)
+      do { try History.shared.insertIntoStorage(historyItem) }
+      catch { Storage.shared.errorMessage = "Could not save clipboard item: \(error.localizedDescription)"; return }
     }
 
     historyItem.application = sourceApp?.bundleIdentifier
@@ -248,7 +266,8 @@ class Clipboard {
             return true
           }
         } catch {
-          return false
+          // Older preferences can contain invalid rules; keep evaluating valid exclusions.
+          continue
         }
       }
     }

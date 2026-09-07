@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
   @State private var appState = AppState.shared
+  @State private var storage = Storage.shared
   @State private var modifierFlags = ModifierFlags()
   @State private var scenePhase: ScenePhase = .background
 
@@ -43,9 +44,13 @@ struct ContentView: View {
         appState.isKeyboardNavigating = false
       }
       .task {
-        try? await appState.history.load()
+        do { try await appState.history.load() }
+        catch { storage.errorMessage = "Could not load history: \(error.localizedDescription)" }
       }
     }
+    .alert("Couldn’t save changes", isPresented: Binding(get: { storage.errorMessage != nil }, set: { if !$0 { storage.errorMessage = nil } })) {
+      Button("OK") { storage.errorMessage = nil }
+    } message: { Text(storage.errorMessage ?? "") }
     .environment(appState)
     .environment(modifierFlags)
     .environment(\.scenePhase, scenePhase)

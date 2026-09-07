@@ -245,19 +245,16 @@ class AppState: Sendable {
             SnippetsSettingsPane()
           },
           Settings.Pane(
-            identifier: Settings.PaneIdentifier.ignore,
-            title: NSLocalizedString("Title", tableName: "IgnoreSettings", comment: ""),
-            toolbarIcon: NSImage.nosign!
-          ) {
-            IgnoreSettingsPane()
-          },
+            identifier: .storage,
+            title: "History",
+            toolbarIcon: NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: "History")!
+          ) { StorageSettingsPane() },
           Settings.Pane(
-            identifier: Settings.PaneIdentifier.advanced,
-            title: NSLocalizedString("Title", tableName: "AdvancedSettings", comment: ""),
-            toolbarIcon: NSImage.gearshape2!
-          ) {
-            AdvancedSettingsPane()
-          }
+            identifier: .statistics,
+            title: "Time saved",
+            toolbarIcon: NSImage(systemSymbolName: "chart.bar", accessibilityDescription: "Time saved")!
+          ) { StatisticsSettingsPane() }
+
         ]
       )
     }

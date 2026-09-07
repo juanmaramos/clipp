@@ -1,6 +1,5 @@
 import Defaults
 import KeyboardShortcuts
-import LaunchAtLogin
 import Sparkle
 import SwiftUI
 
@@ -35,14 +34,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     #endif
 
+    if !CommandLine.arguments.contains("enable-testing") {
+      while true {
+        do { try AppDataLocations.importPreferences(); break }
+        catch {
+          let alert = NSAlert()
+          alert.messageText = "Clipp couldn’t read its previous settings"
+          alert.informativeText = "Your saved settings have been kept. Allow access if macOS asks, then retry.\n\n\(error.localizedDescription)"
+          alert.addButton(withTitle: "Retry"); alert.addButton(withTitle: "Quit")
+          if alert.runModal() != .alertFirstButtonReturn { exit(EXIT_FAILURE) }
+        }
+      }
+    }
+    PreferencesMigration.apply(to: .standard, domainName: Bundle.main.bundleIdentifier ?? "futurialabs.clipp")
+
     // Bridge FloatingPanel via AppDelegate.
     AppState.shared.appDelegate = self
 
-    // Migrate to Clipp v1.0 defaults
-    migrateToClippDefaults()
-
     Clipboard.shared.onNewCopy { History.shared.add($0) }
-    Clipboard.shared.start()
+    if !CommandLine.arguments.contains("enable-testing") { Clipboard.shared.start() }
 
     Task {
       for await _ in Defaults.updates(.clipboardCheckInterval, initial: false) {
@@ -93,7 +103,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ aNotification: Notification) {
-    migrateUserDefaults()
     disableUnusedGlobalHotkeys()
 
     panel = FloatingPanel(
@@ -121,76 +130,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
-  @MainActor private func migrateToClippDefaults() {
-    #if DEBUG
-    if Bundle.main.bundleIdentifier?.hasSuffix(".dev") == true { return }
-    #endif
-    guard Defaults[.migrations]["2026-03-09-clipp-defaults"] != true else {
-      return
-    }
-
-    let currentSize = Defaults[.windowSize]
-    if currentSize.height > 500 {
-      Defaults[.windowSize] = NSSize(width: currentSize.width, height: 500)
-    }
-
-    if Defaults[.popupPosition] == .statusItem {
-      Defaults[.popupPosition] = .cursor
-    }
-
-    if Defaults[.menuIcon] == .clipboard {
-      Defaults[.menuIcon] = .paperclip
-    }
-
-    LaunchAtLogin.isEnabled = true
-    SoftwareUpdater.shared.automaticallyChecksForUpdates = true
-
-    Defaults[.migrations]["2026-03-09-clipp-defaults"] = true
-  }
-
-  private func migrateUserDefaults() {
-    if Defaults[.migrations]["2024-07-01-version-2"] != true {
-      // Start 2.x from scratch.
-      Defaults.reset(.migrations)
-
-      // Inverse hide* configuration keys.
-      Defaults[.showFooter] = !UserDefaults.standard.bool(forKey: "hideFooter")
-      Defaults[.showSearch] = !UserDefaults.standard.bool(forKey: "hideSearch")
-      Defaults[.showTitle] = !UserDefaults.standard.bool(forKey: "hideTitle")
-      UserDefaults.standard.removeObject(forKey: "hideFooter")
-      UserDefaults.standard.removeObject(forKey: "hideSearch")
-      UserDefaults.standard.removeObject(forKey: "hideTitle")
-
-      Defaults[.migrations]["2024-07-01-version-2"] = true
-    }
-
-    if Defaults[.migrations]["2026-03-09-highlight-match-options"] != true {
-      if Defaults[.highlightMatch] == .italic || Defaults[.highlightMatch] == .underline {
-        Defaults[.highlightMatch] = .color
-      }
-
-      Defaults[.migrations]["2026-03-09-highlight-match-options"] = true
-    }
-
-    // The following defaults are not used in Maccy 2.x
-    // and should be removed in 3.x.
-    // - LaunchAtLogin__hasMigrated
-    // - avoidTakingFocus
-    // - saratovSeparator
-    // - maxMenuItemLength
-    // - maxMenuItems
-  }
-
   @objc
   private func performStatusItemClick() {
     if let event = NSApp.currentEvent {
       let modifierFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
       if modifierFlags.contains(.option) {
-        Defaults[.ignoreEvents].toggle()
-
         if modifierFlags.contains(.shift) {
-          Defaults[.ignoreOnlyNextEvent] = Defaults[.ignoreEvents]
+          Defaults[.ignoreOnlyNextEvent].toggle()
+        } else {
+          Defaults[.ignoreEvents].toggle()
         }
 
         return
@@ -226,5 +175,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         KeyboardShortcuts.disable(name)
       }
     }
+  }
+}
+
+// Read the persistent domain so registered factory defaults are never mistaken for user choices.
+enum PreferencesMigration {
+  static func apply(to defaults: UserDefaults, domainName: String) {
+    let saved = defaults.persistentDomain(forName: domainName) ?? [:]
+    var migrations = saved["migrations"] as? [String: Bool] ?? [:]
+    guard migrations["2026-09-07-preserve-preferences"] != true else { return }
+    let existingInstallation = !migrations.isEmpty || saved["KeyboardShortcuts_popup"] != nil
+    if existingInstallation {
+      let previousDefaults: [String: Any] = [
+        "pasteByDefault": false, "removeFormattingByDefault": false,
+        "showApplicationIcons": false, "showSpecialSymbols": true, "previewDelay": 1500
+      ]
+      for (key, value) in previousDefaults where saved[key] == nil { defaults.set(value, forKey: key) }
+    }
+    for (oldKey, newKey) in [("hideFooter", "showFooter"), ("hideSearch", "showSearch"), ("hideTitle", "showTitle")] {
+      if let oldValue = saved[oldKey] as? Bool, saved[newKey] == nil { defaults.set(!oldValue, forKey: newKey) }
+      defaults.removeObject(forKey: oldKey)
+    }
+    if let highlight = saved["highlightMatch"] as? String, ["italic", "underline"].contains(highlight) {
+      defaults.set("color", forKey: "highlightMatch")
+    }
+    migrations["2024-07-01-version-2"] = true
+    migrations["2026-03-09-clipp-defaults"] = true
+    migrations["2026-03-09-highlight-match-options"] = true
+    migrations["2026-09-07-preserve-preferences"] = true
+    defaults.set(migrations, forKey: "migrations")
   }
 }

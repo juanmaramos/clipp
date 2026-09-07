@@ -1,16 +1,11 @@
-name: Build and Release
+name: Publish release
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - appcast.xml
   workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -48,19 +43,26 @@ jobs:
             exit 1
           fi
 
-          BUILD_VERSION="${GITHUB_RUN_NUMBER}"
+          BUILD_VERSION=$(awk '/CURRENT_PROJECT_VERSION =/ {gsub(/;/, "", $3); print $3; exit}' Maccy.xcodeproj/project.pbxproj)
+          PREVIOUS_VERSION=$(python3 -c 'import xml.etree.ElementTree as E; print(E.parse("appcast.xml").find("./channel/item/enclosure").get("{http://www.andymatuschak.org/xml-namespaces/sparkle}version"))')
+          if ! [[ "$BUILD_VERSION" =~ ^[0-9]+$ ]] || [ "$BUILD_VERSION" -le "$PREVIOUS_VERSION" ]; then
+            echo "Release build must be greater than the published appcast version ($PREVIOUS_VERSION)."
+            exit 1
+          fi
           RELEASE_TAG="v${MARKETING_VERSION}-build.${BUILD_VERSION}"
           RELEASE_NAME="Clipp ${MARKETING_VERSION} (build ${BUILD_VERSION})"
 
-          echo "MARKETING_VERSION=$MARKETING_VERSION" >> "$GITHUB_ENV"
-          echo "BUILD_VERSION=$BUILD_VERSION" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
-          echo "RELEASE_NAME=$RELEASE_NAME" >> "$GITHUB_ENV"
+          {
+            echo "MARKETING_VERSION=$MARKETING_VERSION"
+            echo "BUILD_VERSION=$BUILD_VERSION"
+            echo "RELEASE_TAG=$RELEASE_TAG"
+            echo "RELEASE_NAME=$RELEASE_NAME"
+          } >> "$GITHUB_ENV"
 
           echo "📌 Release tag: $RELEASE_TAG"
           echo "📌 App version: $MARKETING_VERSION ($BUILD_VERSION)"
 
-      - name: Test snippets and clipboard shortcuts
+      - name: Run regression tests
         run: |
           xcodebuild \
             -project Maccy.xcodeproj \
@@ -69,9 +71,7 @@ jobs:
             -derivedDataPath build \
             -destination 'platform=macOS' \
             CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
-            -only-testing:MaccyTests/SnippetTests \
-            -only-testing:MaccyTests/HistoryItemDecoratorTests \
-            -only-testing:MaccyTests/SearchTests \
+            -only-testing:MaccyTests \
             test
 
       - name: Import Code Signing Certificate
@@ -102,6 +102,7 @@ jobs:
             -scheme Clipp \
             -configuration Release \
             -derivedDataPath build \
+            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
             CURRENT_PROJECT_VERSION="$BUILD_VERSION" \
             CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
             CODE_SIGN_STYLE=Manual \
@@ -249,7 +250,9 @@ jobs:
 
           # Backward-compatible fallback for legacy DerivedData layout.
           if [ -z "$SIGN_UPDATE" ]; then
-            SIGN_UPDATE=$(ls /Users/runner/Library/Developer/Xcode/DerivedData/*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update 2>/dev/null | head -1)
+            for candidate in /Users/runner/Library/Developer/Xcode/DerivedData/*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update; do
+              if [ -x "$candidate" ]; then SIGN_UPDATE="$candidate"; break; fi
+            done
           fi
 
           if [ -z "$SIGN_UPDATE" ]; then
@@ -266,10 +269,12 @@ jobs:
           fi
 
           # Write private key to temp file
-          echo "$SPARKLE_PRIVATE_KEY" > /tmp/sparkle_private_key
+          SPARKLE_KEY_FILE=$(mktemp)
+          trap 'rm -f "$SPARKLE_KEY_FILE"' EXIT
+          printf '%s\n' "$SPARKLE_PRIVATE_KEY" > "$SPARKLE_KEY_FILE"
 
-          SIGNATURE_OUTPUT=$("$SIGN_UPDATE" Clipp.zip --account clipp -f /tmp/sparkle_private_key 2>/dev/null || "$SIGN_UPDATE" Clipp.zip -f /tmp/sparkle_private_key)
-          rm /tmp/sparkle_private_key
+          SIGNATURE_OUTPUT=$("$SIGN_UPDATE" Clipp.zip --account clipp -f "$SPARKLE_KEY_FILE" 2>/dev/null || "$SIGN_UPDATE" Clipp.zip -f "$SPARKLE_KEY_FILE")
+          rm -f "$SPARKLE_KEY_FILE"
 
           SPARKLE_SIGNATURE=$(printf '%s\n' "$SIGNATURE_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
           if [ -z "$SPARKLE_SIGNATURE" ]; then
@@ -282,7 +287,7 @@ jobs:
             exit 1
           fi
 
-          echo "SPARKLE_SIGNATURE=$SPARKLE_SIGNATURE" >> $GITHUB_ENV
+          echo "SPARKLE_SIGNATURE=$SPARKLE_SIGNATURE" >> "$GITHUB_ENV"
           echo "✅ Sparkle signature generated"
 
       - name: Create Release Tag
@@ -308,6 +313,8 @@ jobs:
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          # Literal Markdown backticks are intentional.
+          # shellcheck disable=SC2016
           {
             echo "RELEASE_BODY<<EOF"
             echo "## ${RELEASE_NAME}"
@@ -323,7 +330,9 @@ jobs:
             echo
             echo "### Changes"
             echo
-            echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${DEFAULT_BRANCH}/CHANGELOG.md) for details."
+            awk '/^## / { if (found) exit; found=1; next } found { print }' CHANGELOG.md
+            echo
+            echo 'Homebrew: `brew tap juanmaramos/tap https://github.com/juanmaramos/clipp.git`, then `brew install --cask juanmaramos/tap/clipp`.'
             echo "EOF"
           } >> "$GITHUB_ENV"
 
@@ -373,7 +382,7 @@ jobs:
                   ]]>
                 </description>
                 <pubDate>${PUB_DATE}</pubDate>
-                <releaseNotesLink>${RELEASE_NOTES_URL}</releaseNotesLink>
+                <sparkle:releaseNotesLink>${RELEASE_NOTES_URL}</sparkle:releaseNotesLink>
                 <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
                 <enclosure
                   url="${DOWNLOAD_URL}"
@@ -390,13 +399,14 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add appcast.xml
+          python3 scripts/update-cask.py "$MARKETING_VERSION" "$BUILD_VERSION" Clipp.zip
+          git add appcast.xml Casks/clipp.rb
           if git diff --cached --quiet; then
             echo "ℹ️ appcast.xml already up to date"
             exit 0
           fi
 
-          git commit -m "Update appcast for ${RELEASE_TAG} [skip ci]"
+          git commit -m "Update appcast and Homebrew cask for ${RELEASE_TAG} [skip ci]"
           git fetch origin "${DEFAULT_BRANCH}"
           git rebase "origin/${DEFAULT_BRANCH}"
           git push origin "HEAD:${DEFAULT_BRANCH}"

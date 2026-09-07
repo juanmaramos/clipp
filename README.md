@@ -22,6 +22,16 @@ macOS Sonoma 14 or higher
 
 Download the latest version (`Clipp.dmg` or `Clipp.zip`) from the [releases](https://github.com/juanmaramos/clipp/releases) page.
 
+Or install through Homebrew:
+
+```sh
+brew tap juanmaramos/tap https://github.com/juanmaramos/clipp.git
+brew install --cask juanmaramos/tap/clipp
+```
+
+The tap tracks published releases, not unbuilt source changes.
+
+
 ## Why Clipp
 
 Clipp is a fast, open-source alternative for people looking for a modern macOS clipboard history app.
@@ -96,7 +106,7 @@ Add apps to the ignore list in Preferences → Ignore → Applications.
 
 ### Custom Keyboard Shortcut
 
-Change the main shortcut in Preferences → General → Open.
+Change the main shortcut in Settings → General → Open clipboard history.
 
 ## FAQ
 
@@ -134,9 +144,9 @@ If Clipp saves you time, you can support development:
 
 ## Releasing
 
-The current workflow publishes on every push to `main` (except appcast-only changes), or a manual workflow dispatch on `main`. Keep unverified work on a feature branch. Update the marketing version and changelog before merging a release.
+Pull requests and pushes to main run tests and a Release build. Publishing is a separate manual **Publish release** workflow on main. Update the marketing version, numeric build number, and changelog before dispatching it.
 
-GitHub Actions builds, signs, notarizes, and packages Clipp, signs the update with Sparkle, creates a release tag using the workflow run number, uploads ZIP/DMG downloads, and updates `appcast.xml`.
+GitHub Actions signs, notarizes, and packages Clipp, signs the update with Sparkle, publishes ZIP/DMG downloads, and updates the appcast and Homebrew cask with the same release. See [DISTRIBUTION.md](DISTRIBUTION.md).
 
 Existing users can enable automatic update checks or choose **Settings → General → Check Now**. New users and users of older builds without the correct update feed can download from [GitHub Releases](https://github.com/juanmaramos/clipp/releases). A manually uploaded ZIP alone does not update the Sparkle feed.
 
@@ -144,17 +154,17 @@ For code signing and notarization setup, see [DISTRIBUTION.md](./DISTRIBUTION.md
 
 ## Snippets
 
-**Development status:** the native library, popup selection, and in-app expansion test are available. System-wide expansion is disabled in the current sandboxed build. Apple does not support the required Accessibility APIs inside App Sandbox; switching the distribution build and preserving existing user data remains a release prerequisite. See [Apple’s explanation](https://developer.apple.com/forums/thread/794253).
+Clipp’s local snippet library includes optional system-wide expansion. Enable it in Settings → Snippets and allow Accessibility; grant Input Monitoring only if Clipp reports it is needed. Expansion works in supported text fields; password fields, excluded apps, and input-method composition are skipped.
 
 Open **Settings → Snippets**, choose **Add examples…** from the library menu, or create a snippet from a text item’s context menu. Personal placeholders remain disabled until edited and enabled. A disabled snippet can still be selected manually from the popup’s Snippets filter.
 
 Supported fields are `{{date}}`, `{{time}}`, `{{datetime}}`, and `{{clipboard}}`. The date/time options configure formatting, locale, time zone, and a calendar-day offset. Clipboard content is inserted literally; it is never evaluated as a template or script.
 
-In a build outside App Sandbox, enable text expansion and allow Clipp in **System Settings → Privacy & Security → Accessibility** and **Input Monitoring**. Then click **Check again**. Password fields, active input-method composition, excluded apps, and fields that cannot verify the text at the caret are skipped. The keyboard buffer is temporary and is not logged. Snippets are stored separately from clipboard history and survive clearing it.
+In a build outside App Sandbox, enable text expansion and allow Clipp in **System Settings → Privacy & Security → Accessibility** . Click **Check again**; grant **Input Monitoring** only if the status asks for it. Password fields, active input-method composition, excluded apps, and fields that cannot verify the text at the caret are skipped. The keyboard buffer is temporary and is not logged. Snippets are stored separately from clipboard history and survive clearing it.
 
 Use **Try it here** to test a draft without granting global keyboard access. For system-wide expansion, Clipp selects the verified abbreviation and pastes the expansion. It preserves all available clipboard items and formats, restores them only if no newer copy replaced them, and excludes its temporary payload from clipboard history. Undo behavior and Accessibility support depend on the destination editor; test the apps you use before relying on automatic expansion.
 
-Debug builds use `futurialabs.clipp.dev`, a separate sandbox and preferences, and do not check for or install public updates.
+Debug builds use `futurialabs.clipp.dev`, separate data and preferences, and do not check for or install public updates.
 
 ## Credits
 
@@ -163,3 +173,7 @@ Clipp is a fork of [Maccy](https://github.com/p0deje/Maccy).
 ## License
 
 [MIT](./LICENSE)
+
+### Time saved
+
+Open **Settings → Time saved** for clipboard reuses, confirmed typed expansions, characters avoided, and estimated savings. Adjust the default 50 words/minute and assumed 5 seconds per reuse in **How we calculate this**; set retrieval seconds to 0 to exclude that estimate. Daily counts stay on this Mac and can be paused or reset. The estimates compare with manual work, not with other users. [Read the formulas, research, and limitations](METRICS.md).

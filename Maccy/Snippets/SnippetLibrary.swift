@@ -42,13 +42,16 @@ final class SnippetLibrary {
     }
   }
 
-  func delete(_ snippet: Snippet) {
-    let previous = snippet.definition
+  @discardableResult
+  func delete(_ snippet: Snippet) -> Bool {
     context.delete(snippet)
-    do { try context.save(); reload(); editorSelection = snippets.first?.id }
-    catch {
-      context.insert(Snippet(previous))
+    do {
+      try context.save(); reload(); editorSelection = snippets.first?.id
+      return true
+    } catch {
+      context.rollback()
       message = "Could not delete snippet: \(error.localizedDescription)"
+      return false
     }
   }
 

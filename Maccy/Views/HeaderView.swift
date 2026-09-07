@@ -21,21 +21,26 @@ struct HeaderView: View {
         Button("Clipboard history") { appState.showingSnippets = false; appState.popup.needsResize = true }
         Button("Snippets") { appState.showingSnippets = true; appState.popup.needsResize = true }
         Divider()
+        Button(Defaults[.ignoreEvents] ? "Resume clipboard history" : "Pause clipboard history") { Defaults[.ignoreEvents].toggle() }
+        Button(Defaults[.ignoreOnlyNextEvent] ? "Cancel skip next copy" : "Skip next copy") { Defaults[.ignoreOnlyNextEvent].toggle() }
+        Divider()
         Button("Manage snippets…") { appState.popup.close(); appState.openPreferences(pane: .snippets) }
         Button(Defaults[.textExpansionEnabled] ? "Pause text expansion" : "Enable text expansion") {
           Defaults[.textExpansionEnabled].toggle()
         }
         .disabled(TextExpansionService.shared.isSandboxed)
       } label: {
-        Image(systemName: appState.showingSnippets ? "text.badge.plus" : "clock.arrow.circlepath")
+        Text(appState.showingSnippets ? "Snippets" : "History")
       }
       .menuStyle(.borderlessButton)
-      .frame(width: 28)
+      .fixedSize()
       .help(appState.showingSnippets ? "Showing snippets" : "Showing clipboard history")
 
       SearchFieldView(placeholder: "search_placeholder", query: $searchQuery)
         .focused($searchFocused)
         .frame(maxWidth: .infinity)
+        .opacity(appState.searchVisible ? 1 : 0)
+        .accessibilityHidden(!appState.searchVisible)
         .onChange(of: scenePhase) {
           if scenePhase == .background && !searchQuery.isEmpty {
             searchQuery = ""
@@ -44,8 +49,7 @@ struct HeaderView: View {
         // Only reliable way to disable the cursor. allowsHitTesting() does not work
         .offset(y: appState.searchVisible ? 0 : -Popup.itemHeight)
     }
-    .frame(height: appState.searchVisible ? Popup.itemHeight + 3 : 0)
-    .opacity(appState.searchVisible ? 1 : 0)
+    .frame(height: Popup.itemHeight + 3)
     .padding(.horizontal, 10)
     // 2px is needed to prevent items from showing behind top pinned items during scrolling
     // https://github.com/p0deje/Maccy/issues/832
