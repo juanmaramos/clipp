@@ -338,7 +338,7 @@ jobs:
             echo
             awk '/^## / { if (found) exit; found=1; next } found { print }' CHANGELOG.md
             echo
-            echo 'Homebrew: `brew tap juanmaramos/clipp https://github.com/juanmaramos/clipp.git`, then `brew install --cask juanmaramos/clipp/clipp`.'
+            echo 'Homebrew 6+: `brew trust --cask juanmaramos/clipp/clipp`, then `brew tap juanmaramos/clipp https://github.com/juanmaramos/clipp.git`, then `brew install --cask juanmaramos/clipp/clipp`.'
             echo "EOF"
           } >> "$GITHUB_ENV"
 

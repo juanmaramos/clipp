@@ -7,6 +7,7 @@ Clipp is distributed through [GitHub Releases](https://github.com/juanmaramos/cl
 The application repository also serves as a custom tap:
 
 ```sh
+brew trust --cask juanmaramos/clipp/clipp
 brew tap juanmaramos/clipp https://github.com/juanmaramos/clipp.git
 brew install --cask juanmaramos/clipp/clipp
 ```
@@ -26,7 +27,7 @@ The checked-in cask points to an existing published release. Publishing the next
 - `.github/workflows/build.yml`, named **Publish release**, runs only through a manual workflow dispatch on main.
 - Publishing requires the existing Developer ID, notarization, and Sparkle secrets in GitHub Actions.
 
-Before publishing, increment `CURRENT_PROJECT_VERSION` in both build configurations and update `MARKETING_VERSION` and `CHANGELOG.md`. Production build numbers must increase regardless of how the app is built. Version 2.7.0 uses build 61, above the previously distributed local build 60 and public build 14. The release workflow rejects a build number that is not above the appcast version.
+Before publishing, increment `CURRENT_PROJECT_VERSION` in both build configurations and update `MARKETING_VERSION` and `CHANGELOG.md`. Production build numbers must increase regardless of how the app is built. Version 2.7.0 uses build 62, above the previously distributed local build 60 and public build 14. The release workflow rejects a build number that is not above the appcast version.
 
 After validation, dispatch **Publish release** on main. The workflow:
 
@@ -57,6 +58,12 @@ xcodebuild -project Maccy.xcodeproj -scheme Clipp -configuration Debug \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
   -only-testing:MaccyTests test
 ```
+
+## Update signing validation
+
+Before building, `scripts/check-update-key.swift` compares the public half of the existing CI signing key with `SUPublicEDKey`. After signing the ZIP, `scripts/verify-update.swift` verifies its signature against the shipped app's public key before any release is published. The manual **Check update signing key** workflow can diagnose a mismatch without exporting the secret.
+
+Build 62 corrects the legacy embedded key to match the existing CI signing key. The Developer ID signing identity stays the same, which supports [Sparkle's documented signing-key rotation](https://sparkle-project.org/documentation/#security). Build 61 remains available as a historical release; build 62 is the corrected update. Homebrew 6+ requires trust in the individual cask; older Homebrew versions omit the `brew trust` line.
 
 ## Release acceptance
 

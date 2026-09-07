@@ -4,6 +4,8 @@ All notable changes to Clipp will be documented in this file.
 
 ## 2.7.0 — 2026-09-07
 
+- Build 62 fixes the legacy Sparkle public-key mismatch, adds pre-publication signature verification, and uses a dedicated Clipp Homebrew tap to avoid conflicts.
+
 ### Added
 - Native Snippets settings with editable shortcuts, preview, starter examples, and import/export.
 - Local text expansion with case and boundary rules, immediate or Space-delimited triggers, app exclusions, and explicit permission status.

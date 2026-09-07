@@ -19,12 +19,15 @@ Clipp is free, open source, and based on [Maccy](https://github.com/p0deje/Maccy
 
 Download `Clipp.dmg` or `Clipp.zip` from the [latest release](https://github.com/juanmaramos/clipp/releases/latest), then move `Clipp.app` to Applications and open it.
 
-Or use the custom Homebrew tap:
+Or use the dedicated Homebrew tap (Homebrew 6+):
 
 ```sh
+brew trust --cask juanmaramos/clipp/clipp
 brew tap juanmaramos/clipp https://github.com/juanmaramos/clipp.git
 brew install --cask juanmaramos/clipp/clipp
 ```
+
+On older Homebrew versions, omit the `brew trust` line. It grants trust only to the Clipp cask.
 
 The cask installs the same signed, notarized app as the release download and follows published releases.
 
