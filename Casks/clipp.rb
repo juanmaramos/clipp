@@ -1,6 +1,6 @@
 cask "clipp" do
-  version "2.7.0,61"
-  sha256 "9626ba57e4b9fc3b6f1d72b8a9326cfdb0033f4bb7b6e946d9af8d4a7e6b1e83"
+  version "2.7.0,62"
+  sha256 "db10ea85d07169e8f2d276b233eef4ed1a0511bf76fc7dfe1938e5128766e236"
 
   url "https://github.com/juanmaramos/clipp/releases/download/v#{version.before_comma}-build.#{version.after_comma}/Clipp.zip"
   name "Clipp"
