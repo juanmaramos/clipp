@@ -7,15 +7,15 @@ Clipp is distributed through [GitHub Releases](https://github.com/juanmaramos/cl
 The application repository also serves as a custom tap:
 
 ```sh
-brew tap juanmaramos/tap https://github.com/juanmaramos/clipp.git
-brew install --cask juanmaramos/tap/clipp
+brew tap juanmaramos/clipp https://github.com/juanmaramos/clipp.git
+brew install --cask juanmaramos/clipp/clipp
 ```
 
 The cask installs the same signed, notarized ZIP used by Sparkle. It declares `auto_updates true`; users who prefer to request an update through Homebrew can run:
 
 ```sh
 brew update
-brew upgrade --cask --greedy juanmaramos/tap/clipp
+brew upgrade --cask --greedy juanmaramos/clipp/clipp
 ```
 
 The checked-in cask points to an existing published release. Publishing the next release updates its version and SHA-256 automatically. A source merge alone does not advertise an unavailable download. Normal uninstall keeps data; `brew uninstall --zap` also removes production history, pins, snippets, and preferences.

@@ -62,6 +62,11 @@ jobs:
           echo "📌 Release tag: $RELEASE_TAG"
           echo "📌 App version: $MARKETING_VERSION ($BUILD_VERSION)"
 
+      - name: Verify update signing key
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: swift scripts/check-update-key.swift Maccy/Info.plist
+
       - name: Run regression tests
         run: |
           xcodebuild \
@@ -287,6 +292,7 @@ jobs:
             exit 1
           fi
 
+          swift scripts/verify-update.swift Clipp.zip build/Build/Products/Release/Clipp.app/Contents/Info.plist "$SPARKLE_SIGNATURE"
           echo "SPARKLE_SIGNATURE=$SPARKLE_SIGNATURE" >> "$GITHUB_ENV"
           echo "✅ Sparkle signature generated"
 
@@ -332,7 +338,7 @@ jobs:
             echo
             awk '/^## / { if (found) exit; found=1; next } found { print }' CHANGELOG.md
             echo
-            echo 'Homebrew: `brew tap juanmaramos/tap https://github.com/juanmaramos/clipp.git`, then `brew install --cask juanmaramos/tap/clipp`.'
+            echo 'Homebrew: `brew tap juanmaramos/clipp https://github.com/juanmaramos/clipp.git`, then `brew install --cask juanmaramos/clipp/clipp`.'
             echo "EOF"
           } >> "$GITHUB_ENV"
 

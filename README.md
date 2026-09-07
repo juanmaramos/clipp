@@ -22,8 +22,8 @@ Download `Clipp.dmg` or `Clipp.zip` from the [latest release](https://github.com
 Or use the custom Homebrew tap:
 
 ```sh
-brew tap juanmaramos/tap https://github.com/juanmaramos/clipp.git
-brew install --cask juanmaramos/tap/clipp
+brew tap juanmaramos/clipp https://github.com/juanmaramos/clipp.git
+brew install --cask juanmaramos/clipp/clipp
 ```
 
 The cask installs the same signed, notarized app as the release download and follows published releases.
@@ -36,7 +36,7 @@ To update through Homebrew:
 
 ```sh
 brew update
-brew upgrade --cask --greedy juanmaramos/tap/clipp
+brew upgrade --cask --greedy juanmaramos/clipp/clipp
 ```
 
 `--greedy` includes apps that have their own updater. Older builds with an outdated update feed can be replaced with the latest download from GitHub Releases.
