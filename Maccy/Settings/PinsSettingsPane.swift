@@ -153,10 +153,11 @@ struct PinsSettingsPane: View {
       }
 
       Text("PinCustomizationDescription", tableName: "PinsSettings")
+        .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(.gray)
         .controlSize(.small)
     }
-    .frame(minWidth: 500, minHeight: 400)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .padding()
   }
 }

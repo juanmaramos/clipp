@@ -2,7 +2,6 @@ import SwiftUI
 import Defaults
 import KeyboardShortcuts
 import LaunchAtLogin
-import Settings
 
 struct GeneralSettingsPane: View {
   private let notificationsURL = URL(
@@ -20,80 +19,53 @@ struct GeneralSettingsPane: View {
   @State private var updater = SoftwareUpdater.shared
 
   var body: some View {
-    Settings.Container(contentWidth: 450) {
-      Settings.Section(title: "", bottomDivider: true) {
-        LaunchAtLogin.Toggle {
-          Text("LaunchAtLogin", tableName: "GeneralSettings")
-        }
+    Form {
+      Section {
+        LaunchAtLogin.Toggle { Text("LaunchAtLogin", tableName: "GeneralSettings") }
         Toggle(isOn: $updater.automaticallyChecksForUpdates) {
           Text("CheckForUpdates", tableName: "GeneralSettings")
-        }
-        .disabled(updater.isDevelopmentBuild)
-        Button(
-          action: { updater.checkForUpdates() },
-          label: { Text("CheckNow", tableName: "GeneralSettings") }
-        )
-        .disabled(updater.isDevelopmentBuild)
+        }.disabled(updater.isDevelopmentBuild)
+        Button(action: { updater.checkForUpdates() }) {
+          Text("CheckNow", tableName: "GeneralSettings")
+        }.disabled(updater.isDevelopmentBuild)
         if updater.isDevelopmentBuild {
           Text("Development builds use separate data and do not install public updates.")
             .font(.caption).foregroundStyle(.secondary)
         }
       }
-
-      Settings.Section(label: { Text("Open", tableName: "GeneralSettings") }) {
-        VStack(alignment: .leading, spacing: 4) {
-          KeyboardShortcuts.Recorder(for: .popup, onChange: { newShortcut in
-            if newShortcut == nil {
-              // No shortcut is recorded. Remove keys monitor
-              AppState.shared.popup.deinitEventsMonitor()
-            } else {
-              // User is using shortcut. Ensure keys monitor is initialized
-              AppState.shared.popup.initEventsMonitor()
-            }
+      Section {
+        LabeledContent {
+          KeyboardShortcuts.Recorder(for: .popup, onChange: { shortcut in
+            if shortcut == nil { AppState.shared.popup.deinitEventsMonitor() }
+            else { AppState.shared.popup.initEventsMonitor() }
           })
-          Text("OpenTooltip", tableName: "GeneralSettings")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-      }
-
-      Settings.Section(label: { Text("Pin", tableName: "GeneralSettings") }) {
-        VStack(alignment: .leading, spacing: 4) {
-          KeyboardShortcuts.Recorder(for: .pin)
-          Text("PinTooltip", tableName: "GeneralSettings")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-      }
-      Settings.Section(
-        bottomDivider: true,
-        label: { Text("Delete", tableName: "GeneralSettings") }
-      ) {
-        VStack(alignment: .leading, spacing: 4) {
-          KeyboardShortcuts.Recorder(for: .delete)
-          Text("DeleteTooltip", tableName: "GeneralSettings")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-      }
-
-      Settings.Section(
-        bottomDivider: true,
-        label: { Text("Search", tableName: "GeneralSettings") }
-      ) {
-        Picker("", selection: $searchMode) {
-          ForEach(Search.Mode.allCases) { mode in
-            Text(mode.description)
+        } label: {
+          VStack(alignment: .leading) {
+            Text("Open", tableName: "GeneralSettings")
+            Text("OpenTooltip", tableName: "GeneralSettings").font(.caption).foregroundStyle(.secondary)
           }
         }
-        .labelsHidden()
-        .frame(width: 180, alignment: .leading)
+        LabeledContent {
+          KeyboardShortcuts.Recorder(for: .pin)
+        } label: {
+          VStack(alignment: .leading) {
+            Text("Pin", tableName: "GeneralSettings")
+            Text("PinTooltip", tableName: "GeneralSettings").font(.caption).foregroundStyle(.secondary)
+          }
+        }
+        LabeledContent {
+          KeyboardShortcuts.Recorder(for: .delete)
+        } label: {
+          VStack(alignment: .leading) {
+            Text("Delete", tableName: "GeneralSettings")
+            Text("DeleteTooltip", tableName: "GeneralSettings").font(.caption).foregroundStyle(.secondary)
+          }
+        }
+        Picker(selection: $searchMode) {
+          ForEach(Search.Mode.allCases) { mode in Text(mode.description) }
+        } label: { Text("Search", tableName: "GeneralSettings") }
       }
-
-      Settings.Section(
-        bottomDivider: true,
-        label: { Text("Behavior", tableName: "GeneralSettings") }
-      ) {
+      Section {
         Picker("When selecting an item", selection: $pasteByDefault) {
           Text("Paste").tag(true)
           Text("Copy").tag(false)
@@ -103,28 +75,27 @@ struct GeneralSettingsPane: View {
           Text("Keep formatting").tag(false)
         }.onChange(of: removeFormatting) { refreshModifiers(removeFormatting) }
         if pasteByDefault && !Accessibility.allowed {
-          Button("Set up pasting…") { Accessibility.openSettings() }
-          Text("Until Accessibility is allowed, selected items are copied for you to paste with ⌘V.")
-            .font(.caption).foregroundStyle(.secondary)
+          VStack(alignment: .leading, spacing: 8) {
+            Button("Set up pasting…") { Accessibility.openSettings() }
+            Text("Allow Accessibility to paste automatically. Until then, press ⌘V after selecting an item.")
+              .font(.caption).foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
+          }
         }
-
-        Text(String(
-          format: NSLocalizedString("Modifiers", tableName: "GeneralSettings", comment: ""),
-          copyModifier, pasteModifier, pasteWithoutFormatting
-        ))
-        .fixedSize(horizontal: false, vertical: true)
-        .foregroundStyle(.gray)
-        .controlSize(.small)
+      } header: {
+        Text("Behavior", tableName: "GeneralSettings")
+      } footer: {
+        Text(String(format: NSLocalizedString("Modifiers", tableName: "GeneralSettings", comment: ""),
+                    copyModifier, pasteModifier, pasteWithoutFormatting))
+          .fixedSize(horizontal: false, vertical: true)
       }
-
-      Settings.Section(title: "") {
-        if let notificationsURL = notificationsURL {
-          Link(destination: notificationsURL, label: {
-            Text("NotificationsAndSounds", tableName: "GeneralSettings")
-          })
+      if let notificationsURL {
+        Section {
+          Link(destination: notificationsURL) { Text("NotificationsAndSounds", tableName: "GeneralSettings") }
         }
       }
     }
+    .formStyle(.grouped)
   }
 
   private func refreshModifiers(_ sender: Sendable) {
