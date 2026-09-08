@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E87BCAAA0300000000000004 /* SettingsWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E87BCAAA0300000000000003 /* SettingsWindowTests.swift */; };
+		E87BCAAA0300000000000002 /* ClippSettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E87BCAAA0300000000000001 /* ClippSettingsWindowController.swift */; };
 		0ABDD5122BB47F1E0054963B /* NSWorkspace+ApplicationName.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDD5112BB47F1E0054963B /* NSWorkspace+ApplicationName.swift */; };
 		2F12271E2E5C932200A1592A /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = 2F12271D2E5C932200A1592A /* Logging */; };
 		2F1A79C02C6DFB7800C98EBD /* SearchVisibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F1A79BF2C6DFB7800C98EBD /* SearchVisibility.swift */; };
@@ -169,6 +171,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E87BCAAA0300000000000003 /* SettingsWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaccyTests/SettingsWindowTests.swift; sourceTree = SOURCE_ROOT; };
+		E87BCAAA0300000000000001 /* ClippSettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClippSettingsWindowController.swift; sourceTree = "<group>"; };
 		088F4DA628BECBC40003AD19 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		0ABDD5112BB47F1E0054963B /* NSWorkspace+ApplicationName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSWorkspace+ApplicationName.swift"; sourceTree = "<group>"; };
 		1180C7372826B6140086870C /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -635,6 +639,7 @@
 				DA689FC32C1CF0F00009B887 /* AppearanceSettingsPane.swift */,
 				DA689FCD2C1DEE570009B887 /* AppearanceSettings.strings */,
 				DAA5ACB12C1B3F8800B58513 /* GeneralSettingsPane.swift */,
+				E87BCAAA0300000000000001 /* ClippSettingsWindowController.swift */,
 				DAA5ACB32C1B803000B58513 /* GeneralSettings.strings */,
 				DA9C3C632C20E1E80056795D /* IgnoreSettingsPane */,
 				DA9C3C442C207AF80056795D /* IgnoreSettingsPane.swift */,
@@ -773,6 +778,7 @@
 				434C495050535441545300011 /* StatisticsSettingsPane.swift */,
 				434C495050535441545300021 /* StatisticsTests.swift */,
 				434C4950505155414C49545231 /* QualityTests.swift */,
+				E87BCAAA0300000000000003 /* SettingsWindowTests.swift */,
 				434C495050534E495050455452 /* SnippetTests.swift */,
 				0FC420F1331347F003A34147 /* Snippet.swift */,
 				D770E5C0C6D1F697D3B581E3 /* SnippetLibrary.swift */,
@@ -1030,6 +1036,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				434C4950505155414C49544231 /* QualityTests.swift in Sources */,
+				E87BCAAA0300000000000004 /* SettingsWindowTests.swift in Sources */,
 				434C495050535441545300022 /* StatisticsTests.swift in Sources */,
 				434C495050534E495050455442 /* SnippetTests.swift in Sources */,
 				DAFE2DE9268A9B1B00990986 /* HistoryItemTests.swift in Sources */,
@@ -1086,6 +1093,7 @@
 				2FA81FE02E43D9B700C12F92 /* Dictionary+RemoveItem.swift in Sources */,
 				DAA5ACCA2C1BEE8A00B58513 /* SoftwareUpdater.swift in Sources */,
 				DAA5ACB22C1B3F8800B58513 /* GeneralSettingsPane.swift in Sources */,
+				E87BCAAA0300000000000002 /* ClippSettingsWindowController.swift in Sources */,
 				DA1969122C3F0DD200258481 /* HistoryItemView.swift in Sources */,
 				DA0EF1881E444B2A00E58577 /* Clipboard.swift in Sources */,
 				DA3F1B452C90084600267632 /* Sauce+KeyboardShortcuts.swift in Sources */,
@@ -1697,7 +1705,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 62;
+				CURRENT_PROJECT_VERSION = 63;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = T569L7X7QJ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1713,7 +1721,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.7.0;
+				MARKETING_VERSION = 2.7.1;
 				PRODUCT_BUNDLE_IDENTIFIER = futurialabs.clipp.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1733,7 +1741,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 62;
+				CURRENT_PROJECT_VERSION = 63;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = T569L7X7QJ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1749,7 +1757,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.7.0;
+				MARKETING_VERSION = 2.7.1;
 				PRODUCT_BUNDLE_IDENTIFIER = futurialabs.clipp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

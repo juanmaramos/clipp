@@ -2,6 +2,13 @@
 
 All notable changes to Clipp will be documented in this file.
 
+## 2.7.1 — 2026-09-08
+
+- Settings now use one resizable window that keeps its size when switching categories and remembers the last size, position, and category.
+- Fix clipped General instructions with native, scrolling forms shared by General, Appearance, and History.
+- Let Pins, Snippets, and Time saved adapt to the available space. Keep snippet Save/Revert controls visible while scrolling advanced options and previews.
+- Cap window height to the current display’s usable area and restore off-screen Settings windows when displays change.
+
 ## 2.7.0 — 2026-09-07
 
 - Build 62 fixes the legacy Sparkle public-key mismatch, adds pre-publication signature verification, and uses a dedicated Clipp Homebrew tap to avoid conflicts.

@@ -75,7 +75,7 @@ struct StatisticsSettingsPane: View {
         Button("Reset statistics…", role: .destructive) { confirmReset = true }
       }.padding(24)
     }
-    .frame(width: 620, height: min(650, (NSScreen.main?.visibleFrame.height ?? 800) - 140))
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .confirmationDialog("Reset all usage statistics?", isPresented: $confirmReset) {
       Button("Reset statistics", role: .destructive) { statistics.reset() }
     } message: {

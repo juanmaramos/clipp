@@ -110,7 +110,7 @@ class AppState: Sendable {
   }
 
   private let about = About()
-  private var settingsWindowController: SettingsWindowController?
+  private var settingsWindowController: ClippSettingsWindowController?
 
   init() {
     history = History.shared
@@ -215,23 +215,23 @@ class AppState: Sendable {
   @MainActor
   func openPreferences(pane: Settings.PaneIdentifier? = nil) { // swiftlint:disable:this function_body_length
     if settingsWindowController == nil {
-      settingsWindowController = SettingsWindowController(
+      settingsWindowController = ClippSettingsWindowController(
         panes: [
-          Settings.Pane(
+          ClippSettingsPane(
             identifier: Settings.PaneIdentifier.general,
             title: NSLocalizedString("Title", tableName: "GeneralSettings", comment: ""),
             toolbarIcon: NSImage.gearshape!
           ) {
             GeneralSettingsPane()
           },
-          Settings.Pane(
+          ClippSettingsPane(
             identifier: Settings.PaneIdentifier.appearance,
             title: NSLocalizedString("Title", tableName: "AppearanceSettings", comment: ""),
             toolbarIcon: NSImage.paintpalette!
           ) {
             AppearanceSettingsPane()
           },
-          Settings.Pane(
+          ClippSettingsPane(
             identifier: Settings.PaneIdentifier.pins,
             title: NSLocalizedString("Title", tableName: "PinsSettings", comment: ""),
             toolbarIcon: NSImage.pincircle!
@@ -240,19 +240,19 @@ class AppState: Sendable {
               .environment(self)
               .modelContainer(Storage.shared.container)
           },
-          Settings.Pane(
+          ClippSettingsPane(
             identifier: Settings.PaneIdentifier.snippets,
             title: "Snippets",
             toolbarIcon: NSImage(systemSymbolName: "text.badge.plus", accessibilityDescription: "Snippets")!
           ) {
             SnippetsSettingsPane()
           },
-          Settings.Pane(
+          ClippSettingsPane(
             identifier: .storage,
             title: "History",
             toolbarIcon: NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: "History")!
           ) { StorageSettingsPane() },
-          Settings.Pane(
+          ClippSettingsPane(
             identifier: .statistics,
             title: "Time saved",
             toolbarIcon: NSImage(systemSymbolName: "chart.bar", accessibilityDescription: "Time saved")!

@@ -1,6 +1,5 @@
 import SwiftUI
 import Defaults
-import Settings
 
 struct StorageSettingsPane: View {
   @Default(.size) private var size
@@ -17,11 +16,8 @@ struct StorageSettingsPane: View {
   }()
 
   var body: some View {
-    Settings.Container(contentWidth: 450) {
-      Settings.Section(
-        bottomDivider: true,
-        label: { Text("Save", tableName: "StorageSettings") }
-      ) {
+    Form {
+      Section {
         Toggle(
           isOn: binding(for: StorageType.files),
           label: { Text("Files", tableName: "StorageSettings") }
@@ -36,10 +32,11 @@ struct StorageSettingsPane: View {
         )
         Text("SaveDescription", tableName: "StorageSettings")
           .controlSize(.small)
-          .foregroundStyle(.gray)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
       }
 
-      Settings.Section(label: { Text("Size", tableName: "StorageSettings") }) {
+      LabeledContent(String(localized: "Size", table: "StorageSettings")) {
         HStack {
           TextField("", value: $size, formatter: sizeFormatter)
             .frame(width: 80)
@@ -50,7 +47,7 @@ struct StorageSettingsPane: View {
         }
       }
 
-      Settings.Section(label: { Text("SortBy", tableName: "StorageSettings") }) {
+      LabeledContent(String(localized: "SortBy", table: "StorageSettings")) {
         Picker("", selection: $sortBy) {
           ForEach(Sorter.By.allCases) { mode in
             Text(mode.description)
@@ -60,12 +57,13 @@ struct StorageSettingsPane: View {
         .frame(width: 160, alignment: .leading)
         .help(Text("SortByTooltip", tableName: "StorageSettings"))
       }
-      Settings.Section(title: "Capture & privacy") {
+      Section("Capture & privacy") {
         AdvancedSettingsPane()
         Button("Excluded apps and rules…") { exclusionsShown = true }
       }
 
     }
+    .formStyle(.grouped)
     .sheet(isPresented: $exclusionsShown) {
       VStack {
         IgnoreSettingsPane()

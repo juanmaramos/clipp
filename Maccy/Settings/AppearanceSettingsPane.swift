@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 import Defaults
-import Settings
 
 struct AppearanceSettingsPane: View {
   private static let availableHighlightMatches: [HighlightMatch] = [.color, .bold]
@@ -37,8 +36,8 @@ struct AppearanceSettingsPane: View {
   }()
 
   var body: some View {
-    Settings.Container(contentWidth: 650) {
-      Settings.Section(label: { Text("PopupAt", tableName: "AppearanceSettings") }) {
+    Form {
+      LabeledContent(String(localized: "PopupAt", table: "AppearanceSettings")) {
         HStack {
           Picker("", selection: $popupAt) {
             ForEach(PopupPosition.allCases) { position in
@@ -67,7 +66,7 @@ struct AppearanceSettingsPane: View {
         }
       }
 
-      Settings.Section(label: { Text("PinTo", tableName: "AppearanceSettings") }) {
+      LabeledContent(String(localized: "PinTo", table: "AppearanceSettings")) {
         Picker("", selection: $pinTo) {
           ForEach(PinsPosition.allCases) { position in
             Text(position.description)
@@ -78,7 +77,7 @@ struct AppearanceSettingsPane: View {
         .help(Text("PinToTooltip", tableName: "AppearanceSettings"))
       }
 
-      Settings.Section(label: { Text("ImageHeight", tableName: "AppearanceSettings") }) {
+      LabeledContent(String(localized: "ImageHeight", table: "AppearanceSettings")) {
         HStack {
           TextField("", value: $imageHeight, formatter: imageHeightFormatter)
             .frame(width: 120)
@@ -88,7 +87,7 @@ struct AppearanceSettingsPane: View {
         }
       }
 
-      Settings.Section(label: { Text("PreviewDelay", tableName: "AppearanceSettings") }) {
+      LabeledContent(String(localized: "PreviewDelay", table: "AppearanceSettings")) {
         HStack {
           TextField("", value: $previewDelay, formatter: previewDelayFormatter)
             .frame(width: 120)
@@ -98,10 +97,7 @@ struct AppearanceSettingsPane: View {
         }
       }
 
-      Settings.Section(
-        bottomDivider: true,
-        label: { Text("HighlightMatches", tableName: "AppearanceSettings") }
-      ) {
+      LabeledContent(String(localized: "HighlightMatches", table: "AppearanceSettings")) {
         Picker("", selection: highlightMatchBinding) {
           ForEach(Self.availableHighlightMatches) { match in
             Text(match.description)
@@ -112,7 +108,7 @@ struct AppearanceSettingsPane: View {
         .help(Text("HighlightMatchesTooltip", tableName: "AppearanceSettings"))
       }
 
-      Settings.Section(title: "") {
+      Section {
         Defaults.Toggle(key: .showSpecialSymbols) {
           Text("ShowSpecialSymbols", tableName: "AppearanceSettings")
         }
@@ -165,10 +161,12 @@ struct AppearanceSettingsPane: View {
         }
         Text("OpenPreferencesWarning", tableName: "AppearanceSettings")
           .opacity(showFooter ? 0 : 1)
+          .fixedSize(horizontal: false, vertical: true)
           .controlSize(.small)
           .foregroundStyle(.gray)
       }
     }
+    .formStyle(.grouped)
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
       screens = NSScreen.screens
     }

@@ -4,7 +4,7 @@ Clipboard history and text expansion for macOS. Find something you copied, paste
 
 Clipp is free, open source, and based on [Maccy](https://github.com/p0deje/Maccy). It runs locally on **macOS Sonoma 14 or later**, with universal releases for Apple Silicon and Intel.
 
-![Clipp’s Snippets settings, showing a date abbreviation, date and time formats, and optional expansion feedback](docs/images/snippets.jpg)
+![Clipp’s resizable Snippets settings, showing a timestamp shortcut and persistent Save and Revert controls](docs/images/snippets.jpg)
 
 ## Features
 
@@ -67,6 +67,8 @@ Allow Clipp in **System Settings → Privacy & Security → Accessibility** for 
 | Close picker | Esc |
 
 Change the picker shortcut in **Settings → General → Open clipboard history**. Clearing clipboard history keeps the snippet library.
+
+Settings use one resizable window across all categories. Clipp remembers its size, position, and last category, and caps the window to the display’s usable area. Longer forms scroll, and snippet Save/Revert controls stay visible while you edit.
 
 ## Snippets and typed shortcuts
 

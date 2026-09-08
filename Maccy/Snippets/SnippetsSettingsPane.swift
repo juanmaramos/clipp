@@ -81,7 +81,6 @@ struct SnippetsSettingsPane: View {
           .listStyle(.plain)
           HStack {
             Button("New snippet", systemImage: "plus") { requestSelection(nil) }
-            if library.snippets.isEmpty { Button("Examples…") { examplesShown = true } }
             Menu {
               Button("Add examples…") { examplesShown = true }
               Button("Import snippets…") { importSnippets() }
@@ -89,112 +88,117 @@ struct SnippetsSettingsPane: View {
             } label: { Image(systemName: "ellipsis.circle") }
             Spacer()
           }.padding(.horizontal, 10)
+          if library.snippets.isEmpty { Button("Examples…") { examplesShown = true } }
         }
         .padding(.vertical, 12)
         .frame(minWidth: 170, idealWidth: 190, maxWidth: 230)
-        ScrollView {
-          VStack(alignment: .leading, spacing: 14) {
-            HStack {
-              Text(isNew ? "New snippet" : "Edit snippet").font(.headline)
-              Spacer()
-              if !isNew {
-                Button("Duplicate") {
-                  draft.id = UUID(); draft.name += " copy"; draft.abbreviation = ""; draft.isEnabled = false; isNew = true
-                }
-                Button(role: .destructive) { confirmDelete = true } label: { Image(systemName: "trash") }
-                  .help("Delete snippet").accessibilityLabel("Delete snippet")
-              }
-            }
-            LabeledContent("Name") { TextField("Email", text: $draft.name) }
-            LabeledContent("Typed shortcut") { TextField(";em", text: $draft.abbreviation).font(.body.monospaced()) }
-            VStack(alignment: .leading, spacing: 7) {
+        VStack(spacing: 0) {
+          ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
               HStack {
-                Text("Expansion")
+                Text(isNew ? "New snippet" : "Edit snippet").font(.headline)
                 Spacer()
-                Menu("Insert field") {
-                  Button("Date") { draft.content += "{{date}}" }
-                  Button("Time") { draft.content += "{{time}}" }
-                  Button("Date & Time") { draft.content += "{{datetime}}" }
-                  Button("Clipboard") { draft.content += "{{clipboard}}" }
+                if !isNew {
+                  Button("Duplicate") {
+                    draft.id = UUID(); draft.name += " copy"; draft.abbreviation = ""; draft.isEnabled = false; isNew = true
+                  }
+                  Button(role: .destructive) { confirmDelete = true } label: { Image(systemName: "trash") }
+                    .help("Delete snippet").accessibilityLabel("Delete snippet")
                 }
               }
-              TextEditor(text: $draft.content)
-                .font(.body.monospaced())
-                .frame(minHeight: 95)
-                .padding(5)
-                .overlay(RoundedRectangle(cornerRadius: 5).stroke(.quaternary))
-            }
-            if hasDate { dateOptions }
-            DisclosureGroup("Automatic expansion") {
-              VStack(alignment: .leading, spacing: 8) {
-                Toggle("Enable this typed shortcut", isOn: $draft.isEnabled)
-                Picker("Expand", selection: $draft.waitsForSpace) {
-                  Text("Immediately").tag(false)
-                  Text("After Space · keep space").tag(true)
+              LabeledContent("Name") { TextField("Email", text: $draft.name) }
+              LabeledContent("Typed shortcut") { TextField(";em", text: $draft.abbreviation).font(.body.monospaced()) }
+              VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                  Text("Expansion")
+                  Spacer()
+                  Menu("Insert field") {
+                    Button("Date") { draft.content += "{{date}}" }
+                    Button("Time") { draft.content += "{{time}}" }
+                    Button("Date & Time") { draft.content += "{{datetime}}" }
+                    Button("Clipboard") { draft.content += "{{clipboard}}" }
+                  }
                 }
-                Toggle("Match case", isOn: $draft.caseSensitive)
-                Toggle("Only after whitespace or at the start of a field", isOn: $draft.requiresWordBoundary)
-                Text("Snippets are always available from the Clipp picker, even when automatic expansion is off.")
-                  .font(.caption).foregroundStyle(.secondary)
-              }.padding(.top, 6)
-            }
-            if let validation, hasChanges {
-              Text(validation).font(.caption).foregroundStyle(.red)
-            }
-            HStack {
-              Text(hasChanges ? "Unsaved changes" : (isNew ? "" : "Saved"))
+                TextEditor(text: $draft.content)
+                  .font(.body.monospaced())
+                  .frame(minHeight: 95)
+                  .padding(5)
+                  .overlay(RoundedRectangle(cornerRadius: 5).stroke(.quaternary))
+              }
+              if hasDate { dateOptions }
+              DisclosureGroup("Automatic expansion") {
+                VStack(alignment: .leading, spacing: 8) {
+                  Toggle("Enable this typed shortcut", isOn: $draft.isEnabled)
+                  Picker("Expand", selection: $draft.waitsForSpace) {
+                    Text("Immediately").tag(false)
+                    Text("After Space · keep space").tag(true)
+                  }
+                  Toggle("Match case", isOn: $draft.caseSensitive)
+                  Toggle("Only after whitespace or at the start of a field", isOn: $draft.requiresWordBoundary)
+                  Text("Snippets are always available from the Clipp picker, even when automatic expansion is off.")
+                    .font(.caption).foregroundStyle(.secondary)
+                }.padding(.top, 6)
+              }
+              if let validation, hasChanges {
+                Text(validation).font(.caption).foregroundStyle(.red)
+              }
+              Divider()
+              TimelineView(.periodic(from: .now, by: 1)) { context in
+                VStack(alignment: .leading, spacing: 5) {
+                  Text("Preview").font(.headline)
+                  Text(SnippetTemplate.render(draft, now: context.date, clipboard: "Copied text") ?? SnippetTemplate.sizeError)
+                    .textSelection(.enabled).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+              }
+              DisclosureGroup("Try this shortcut") {
+              HStack {
+                Text("Try it here").font(.headline)
+                Spacer()
+                Button("Preview expansion") {
+                  if let text = SnippetTemplate.render(draft, clipboard: "Copied text") { testText = text; testFeedback() }
+                  else { testResult = SnippetTemplate.sizeError }
+                }
+                  .disabled(validation != nil)
+              }
+              TextField("Type \(draft.abbreviation)\(draft.waitsForSpace ? " then Space" : "")", text: $testText, axis: .vertical)
+                .lineLimit(2...5)
+                .textFieldStyle(.roundedBorder)
+                .background(testHighlighted ? Color.accentColor.opacity(0.15) : .clear)
+                .onChange(of: testText) { old, new in
+                  guard !replacingTest, new.count > old.count, validation == nil else { return }
+                  var matcher = SnippetMatcher()
+                  var sample = draft; sample.isEnabled = true
+                  if let match = matcher.append(new, snippets: [sample]),
+                     let expansion = SnippetTemplate.render(draft, clipboard: "Copied text") {
+                    replacingTest = true
+                    testText = String(new.dropLast(match.typedText.count)) + expansion + match.suffix
+                    testFeedback()
+                    DispatchQueue.main.async { replacingTest = false }
+                  }
+                }
+              Text(testResult.isEmpty ? "This test works even when global expansion is off." : testResult)
                 .font(.caption).foregroundStyle(.secondary)
-              Spacer()
-              Button("Revert") { draft = savedDraft }.disabled(!hasChanges)
-              Button("Save snippet") {
-                if library.save(draft) { savedDraft = draft; isNew = false }
               }
-              .disabled(validation != nil || !hasChanges)
-              .keyboardShortcut("s", modifiers: .command)
-            }
-            Divider()
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-              VStack(alignment: .leading, spacing: 5) {
-                Text("Preview").font(.headline)
-                Text(SnippetTemplate.render(draft, now: context.date, clipboard: "Copied text") ?? SnippetTemplate.sizeError)
-                  .textSelection(.enabled).foregroundStyle(.secondary)
-                  .frame(maxWidth: .infinity, alignment: .leading)
-              }
-            }
-            DisclosureGroup("Try this shortcut") {
-            HStack {
-              Text("Try it here").font(.headline)
-              Spacer()
-              Button("Preview expansion") {
-                if let text = SnippetTemplate.render(draft, clipboard: "Copied text") { testText = text; testFeedback() }
-                else { testResult = SnippetTemplate.sizeError }
-              }
-                .disabled(validation != nil)
-            }
-            TextField("Type \(draft.abbreviation)\(draft.waitsForSpace ? " then Space" : "")", text: $testText, axis: .vertical)
-              .lineLimit(2...5)
-              .textFieldStyle(.roundedBorder)
-              .background(testHighlighted ? Color.accentColor.opacity(0.15) : .clear)
-              .onChange(of: testText) { old, new in
-                guard !replacingTest, new.count > old.count, validation == nil else { return }
-                var matcher = SnippetMatcher()
-                var sample = draft; sample.isEnabled = true
-                if let match = matcher.append(new, snippets: [sample]),
-                   let expansion = SnippetTemplate.render(draft, clipboard: "Copied text") {
-                  replacingTest = true
-                  testText = String(new.dropLast(match.typedText.count)) + expansion + match.suffix
-                  testFeedback()
-                  DispatchQueue.main.async { replacingTest = false }
-                }
-              }
-            Text(testResult.isEmpty ? "This test works even when global expansion is off." : testResult)
-              .font(.caption).foregroundStyle(.secondary)
-            }
 
+            }
+            .textFieldStyle(.roundedBorder)
+            .padding(18)
           }
-          .textFieldStyle(.roundedBorder)
-          .padding(18)
-        }.frame(minWidth: 430)
+          Divider()
+          HStack {
+            Text(hasChanges ? "Unsaved changes" : (isNew ? "" : "Saved"))
+              .font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            Button("Revert") { draft = savedDraft }.disabled(!hasChanges)
+            Button("Save snippet") {
+              if library.save(draft) { savedDraft = draft; isNew = false }
+            }
+            .disabled(validation != nil || !hasChanges)
+            .keyboardShortcut("s", modifiers: .command)
+          }
+          .padding(12)
+        }.frame(minWidth: 420)
       }
       Divider()
       DisclosureGroup("Expansion feedback") {
@@ -209,7 +213,7 @@ struct SnippetsSettingsPane: View {
         }
       }.padding(14)
     }
-    .frame(width: 740, height: min(620, (NSScreen.main?.visibleFrame.height ?? 760) - 140))
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .onAppear {
       library.reload()
       if !editorLoaded {
