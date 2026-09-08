@@ -71,16 +71,23 @@ final class SettingsWindowTests: XCTestCase {
     let controller = ClippSettingsWindowController(panes: panes, preferences: preferences)
     let window = try XCTUnwrap(controller.window)
     defer { controller.close() }
-    window.orderFront(nil)
+    controller.show()
+    let visible = try XCTUnwrap(window.screen).visibleFrame
+    XCTAssertEqual(window.maxSize, visible.size)
+    XCTAssertEqual(window.minSize, NSSize(width: min(700, visible.width), height: min(520, visible.height)))
     for size in [NSSize(width: 780, height: 680), NSSize(width: 700, height: 520)] {
-      window.setFrame(NSRect(origin: window.frame.origin, size: size), display: true)
+      let expected = NSSize(width: min(size.width, visible.width), height: min(size.height, visible.height))
+      window.setFrame(NSRect(origin: window.frame.origin, size: expected), display: true)
       for pane in panes {
         controller.selectPane(pane.identifier)
         window.contentView?.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-        XCTAssertEqual(window.frame.size, size, pane.title)
+        XCTAssertEqual(window.frame.size, expected, pane.title)
       }
     }
+    window.setContentSize(NSSize(width: visible.width * 2, height: visible.height * 2))
+    XCTAssertLessThanOrEqual(window.frame.width, visible.width)
+    XCTAssertLessThanOrEqual(window.frame.height, visible.height)
   }
 
   func testWindowFromDisconnectedDisplayFitsCurrentVisibleArea() {

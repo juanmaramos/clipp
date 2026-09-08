@@ -66,9 +66,10 @@ final class ClippSettingsWindowController: NSWindowController, NSToolbarDelegate
 
   func show(pane: Settings.PaneIdentifier? = nil) {
     if let pane { selectPane(pane) }
-    constrainToScreen()
     NSApp.activate()
     showWindow(nil)
+    // AppKit finalizes toolbar metrics when shown, so apply the cap afterward.
+    constrainToScreen()
   }
 
   func selectPane(_ identifier: Settings.PaneIdentifier) {
@@ -133,8 +134,9 @@ final class ClippSettingsWindowController: NSWindowController, NSToolbarDelegate
   @objc private func constrainToScreen() {
     guard let window, let screen = window.screen ?? NSScreen.main else { return }
     let visible = screen.visibleFrame
-    window.minSize = NSSize(width: min(700, visible.width), height: min(520, visible.height))
-    window.maxSize = visible.size
+    let minimum = NSRect(origin: .zero, size: NSSize(width: min(700, visible.width), height: min(520, visible.height)))
+    window.contentMinSize = window.contentRect(forFrameRect: minimum).size
+    window.contentMaxSize = window.contentRect(forFrameRect: visible).size
     window.setFrame(Self.constrainedFrame(window.frame, to: visible), display: true)
   }
 
