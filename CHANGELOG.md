@@ -2,6 +2,13 @@
 
 All notable changes to Clipp will be documented in this file.
 
+## 2.7.2 — 2026-10-01
+
+- Recover disabled or invalid keyboard listeners and recheck expansion permission while typed shortcuts are enabled, including after sleep.
+- Report Ready only after verifying the listener is enabled. Keep replacement errors visible during healthy background checks.
+- Use Accessibility authorization for text expansion without requiring a redundant Input Monitoring grant. Simplify the permission button and document how to refresh a stale macOS permission entry.
+- Make Save snippet the native primary action, using the system accent color when changes can be saved.
+
 ## 2.7.1 — 2026-09-08
 
 - Settings now use one resizable window that keeps its size when switching categories and remembers the last size, position, and category.

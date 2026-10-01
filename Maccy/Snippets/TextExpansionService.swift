@@ -18,6 +18,7 @@ final class TextExpansionService {
   @ObservationIgnored private var tap: CFMachPort?
   @ObservationIgnored private var source: CFRunLoopSource?
   @ObservationIgnored private var settingsTask: Task<Void, Never>?
+  @ObservationIgnored private var healthTask: Task<Void, Never>?
   @ObservationIgnored private var transactionTask: Task<Void, Never>?
   @ObservationIgnored private var matcher = SnippetMatcher()
   @ObservationIgnored private var lastElement: AXUIElement?
@@ -30,8 +31,23 @@ final class TextExpansionService {
 
   func start() {
     guard settingsTask == nil else { return }
-    settingsTask = Task {
-      for await _ in Defaults.updates(.textExpansionEnabled) { refresh() }
+    settingsTask = Task { [weak self] in
+      for await enabled in Defaults.updates(.textExpansionEnabled) { self?.monitor(enabled: enabled) }
+    }
+  }
+
+  private func monitor(enabled: Bool) {
+    healthTask?.cancel()
+    healthTask = nil
+    refresh()
+    guard enabled, !isSandboxed else { return }
+    // Permissions can return while another app is active, and taps can stop across sleep.
+    healthTask = Task { [weak self] in
+      while !Task.isCancelled {
+        do { try await Task.sleep(for: .seconds(2)) } catch { return }
+        guard !Task.isCancelled, Defaults[.textExpansionEnabled] else { return }
+        self?.refresh()
+      }
     }
   }
 
@@ -43,8 +59,21 @@ final class TextExpansionService {
     }
     guard Defaults[.textExpansionEnabled] else { stopListening(); status = "Text expansion is off."; return }
     guard AXIsProcessTrusted() else { stopListening(); status = "Allow Accessibility to replace typed shortcuts."; return }
-    guard CGPreflightListenEventAccess() else { stopListening(); status = "Allow Input Monitoring to detect typed shortcuts."; return }
-    guard tap == nil else { status = "Ready. Shortcuts expand in supported text fields."; return }
+    // Accessibility authorizes this active tap; do not require a separate listen-only permission.
+    if let tap {
+      let wasEnabled = CFMachPortIsValid(tap) && CGEvent.tapIsEnabled(tap: tap)
+      if Self.resumeTap(tap) {
+        // Do not erase a replacement error or reset an in-flight match on a healthy check.
+        if !wasEnabled || !isListening {
+          matcher.reset()
+          lastElement = nil
+          isListening = true
+          status = "Ready. Shortcuts expand in supported text fields."
+        }
+        return
+      }
+      stopListening()
+    }
     let types: [CGEventType] = [.keyDown, .keyUp, .flagsChanged, .leftMouseDown, .leftMouseUp,
                                .rightMouseDown, .rightMouseUp, .otherMouseDown, .otherMouseUp, .scrollWheel]
     let mask = types.reduce(CGEventMask(0)) { $0 | (1 << $1.rawValue) }
@@ -63,14 +92,27 @@ final class TextExpansionService {
     tap = created
     source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, created, 0)
     CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-    CGEvent.tapEnable(tap: created, enable: true)
+    guard Self.resumeTap(created) else {
+      stopListening()
+      status = "Keyboard monitoring could not start. Check permissions, then try again."
+      return
+    }
     isListening = true
     status = "Ready. Shortcuts expand in supported text fields."
   }
 
-  func openPermissionSettings(accessibility: Bool) {
-    let pane = accessibility ? "Privacy_Accessibility" : "Privacy_ListenEvent"
-    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
+  static func resumeTap(
+    _ tap: CFMachPort,
+    isEnabled: (CFMachPort) -> Bool = { CGEvent.tapIsEnabled(tap: $0) },
+    enable: (CFMachPort) -> Void = { CGEvent.tapEnable(tap: $0, enable: true) }
+  ) -> Bool {
+    guard CFMachPortIsValid(tap) else { return false }
+    if !isEnabled(tap) { enable(tap) }
+    return CFMachPortIsValid(tap) && isEnabled(tap)
+  }
+
+  func openPermissionSettings() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
       NSWorkspace.shared.open(url)
     }
   }
@@ -78,6 +120,7 @@ final class TextExpansionService {
   private func stopListening() {
     // A transaction owns the clipboard until it finishes; it must be allowed to clean up.
     matcher.reset()
+    lastElement = nil
     if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
     if let tap { CFMachPortInvalidate(tap) }
     tap = nil
@@ -90,7 +133,9 @@ final class TextExpansionService {
     let unchanged = Unmanaged.passUnretained(event)
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
       matcher.reset()
-      if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+      lastElement = nil
+      isListening = Defaults[.textExpansionEnabled] && tap.map { Self.resumeTap($0) } == true
+      status = isListening ? "Ready. Shortcuts expand in supported text fields." : "Keyboard monitoring paused. Retrying…"
       return unchanged
     }
     if event.getIntegerValueField(.eventSourceUserData) == Self.eventTag { return unchanged }

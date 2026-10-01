@@ -48,10 +48,7 @@ struct SnippetsSettingsPane: View {
             Text(service.status).font(.caption).foregroundStyle(.secondary)
             Spacer()
             if !service.isListening && !service.isSandboxed {
-              Menu("Permissions") {
-                Button("Open Accessibility Settings…") { service.openPermissionSettings(accessibility: true) }
-                Button("Open Input Monitoring Settings…") { service.openPermissionSettings(accessibility: false) }
-              }
+              Button("Permissions…") { service.openPermissionSettings() }
               Button("Check again") { service.refresh() }
             }
           }
@@ -194,6 +191,7 @@ struct SnippetsSettingsPane: View {
             Button("Save snippet") {
               if library.save(draft) { savedDraft = draft; isNew = false }
             }
+            .buttonStyle(.borderedProminent)
             .disabled(validation != nil || !hasChanges)
             .keyboardShortcut("s", modifiers: .command)
           }

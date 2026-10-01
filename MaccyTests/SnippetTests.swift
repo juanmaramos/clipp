@@ -10,6 +10,58 @@ final class SnippetTests: XCTestCase {
     .init(name: "Email", abbreviation: ";em", content: "person@example.com", isEnabled: true)
   }
 
+  private func listenerPort() throws -> CFMachPort {
+    var context = CFMachPortContext(version: 0, info: nil, retain: nil, release: nil, copyDescription: nil)
+    return try XCTUnwrap(CFMachPortCreate(kCFAllocatorDefault, { _, _, _, _ in }, &context, nil))
+  }
+
+  func testHealthyListenerIsNotInterruptedByHealthCheck() throws {
+    let tap = try listenerPort()
+    defer { CFMachPortInvalidate(tap) }
+    XCTAssertTrue(TextExpansionService.resumeTap(tap, isEnabled: { _ in true }, enable: { _ in
+      XCTFail("A healthy listener must not be restarted")
+    }))
+  }
+
+  func testDisabledListenerResumesAndVerifiesItsState() throws {
+    let tap = try listenerPort()
+    defer { CFMachPortInvalidate(tap) }
+    var enabled = false
+    var attempts = 0
+    XCTAssertTrue(TextExpansionService.resumeTap(tap, isEnabled: { _ in enabled }, enable: { _ in
+      attempts += 1
+      enabled = true
+    }))
+    XCTAssertEqual(attempts, 1)
+    XCTAssertTrue(enabled)
+  }
+
+  func testListenerThatCannotResumeIsNotReportedHealthy() throws {
+    let tap = try listenerPort()
+    defer { CFMachPortInvalidate(tap) }
+    var attempts = 0
+    XCTAssertFalse(TextExpansionService.resumeTap(tap, isEnabled: { _ in false }, enable: { _ in
+      attempts += 1
+    }))
+    XCTAssertEqual(attempts, 1)
+  }
+
+  func testInvalidListenerRequiresRecreation() throws {
+    let tap = try listenerPort()
+    CFMachPortInvalidate(tap)
+    XCTAssertFalse(TextExpansionService.resumeTap(tap, isEnabled: { _ in
+      XCTFail("An invalid port must not be queried as an event tap")
+      return true
+    }, enable: { _ in XCTFail("An invalid port cannot be resumed") }))
+  }
+
+  func testListenerInvalidatedDuringResumeIsNotReportedHealthy() throws {
+    let tap = try listenerPort()
+    XCTAssertFalse(TextExpansionService.resumeTap(tap, isEnabled: { _ in false }, enable: {
+      CFMachPortInvalidate($0)
+    }))
+  }
+
   func testMatcherRequiresBoundaryAndDoesNotRecurse() {
     var matcher = SnippetMatcher()
     XCTAssertNil(matcher.append("word;em", snippets: [email]))
