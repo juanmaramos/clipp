@@ -191,6 +191,7 @@ struct SnippetsSettingsPane: View {
             Button("Save snippet") {
               if library.save(draft) { savedDraft = draft; isNew = false }
             }
+            .buttonStyle(.borderedProminent)
             .disabled(validation != nil || !hasChanges)
             .keyboardShortcut("s", modifiers: .command)
           }
