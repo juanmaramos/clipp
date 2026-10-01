@@ -84,9 +84,9 @@ Open **Settings → Snippets**. Create a snippet, or choose **Add examples…** 
 
 Choose your own abbreviation and whether it expands immediately or after Space. Configure date and time presets, relative days, or custom formats, locale, and time zone. Supported fields are `{{date}}`, `{{time}}`, `{{datetime}}`, and `{{clipboard}}`; clipboard text is inserted literally, never evaluated as a script.
 
-Turn on **Expand typed shortcuts** and allow Accessibility. Grant **Input Monitoring** only if Clipp’s status asks for it. Password fields, secure input, excluded apps, input-method composition, and unsupported text fields are skipped.
+Turn on **Expand typed shortcuts** and allow Accessibility. That permission covers detecting and replacing typed shortcuts; a separate Input Monitoring grant is not required. Password fields, secure input, excluded apps, input-method composition, and unsupported text fields are skipped.
 
-If expansion stops, check the status in **Settings → Snippets** and confirm both the global switch and the snippet are enabled. If macOS lists Clipp as allowed but Clipp still reports missing Accessibility access, remove that entry and add `/Applications/Clipp.app` again. On macOS 27, that permission is named **Device Control and Data Access**. Follow any remaining Input Monitoring request and reopen Clipp if macOS asks. While expansion is enabled, Clipp rechecks permissions and the keyboard listener automatically, including after sleep.
+If expansion stops, check the status in **Settings → Snippets** and confirm both the global switch and the snippet are enabled. If macOS lists Clipp as allowed but Clipp still reports missing Accessibility access, remove that entry and add `/Applications/Clipp.app` again, then reopen Clipp if needed. On macOS 27, that permission is named **Device Control and Data Access**. While expansion is enabled, Clipp rechecks permission and the keyboard listener automatically, including after sleep.
 
 Use **Try this shortcut** to preview a draft inside settings. Use the picker’s **Snippets** filter to insert a snippet manually, including one whose automatic shortcut is disabled. Personal example placeholders start disabled.
 

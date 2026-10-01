@@ -59,7 +59,7 @@ final class TextExpansionService {
     }
     guard Defaults[.textExpansionEnabled] else { stopListening(); status = "Text expansion is off."; return }
     guard AXIsProcessTrusted() else { stopListening(); status = "Allow Accessibility to replace typed shortcuts."; return }
-    guard CGPreflightListenEventAccess() else { stopListening(); status = "Allow Input Monitoring to detect typed shortcuts."; return }
+    // Accessibility authorizes this active tap; do not require a separate listen-only permission.
     if let tap {
       let wasEnabled = CFMachPortIsValid(tap) && CGEvent.tapIsEnabled(tap: tap)
       if Self.resumeTap(tap) {
@@ -111,9 +111,8 @@ final class TextExpansionService {
     return CFMachPortIsValid(tap) && isEnabled(tap)
   }
 
-  func openPermissionSettings(accessibility: Bool) {
-    let pane = accessibility ? "Privacy_Accessibility" : "Privacy_ListenEvent"
-    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
+  func openPermissionSettings() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
       NSWorkspace.shared.open(url)
     }
   }
