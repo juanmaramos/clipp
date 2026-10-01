@@ -86,6 +86,8 @@ Choose your own abbreviation and whether it expands immediately or after Space. 
 
 Turn on **Expand typed shortcuts** and allow Accessibility. Grant **Input Monitoring** only if Clipp’s status asks for it. Password fields, secure input, excluded apps, input-method composition, and unsupported text fields are skipped.
 
+If expansion stops, check the status in **Settings → Snippets** and confirm both the global switch and the snippet are enabled. If macOS lists Clipp as allowed but Clipp still reports missing Accessibility access, remove that entry and add `/Applications/Clipp.app` again. On macOS 27, that permission is named **Device Control and Data Access**. Follow any remaining Input Monitoring request and reopen Clipp if macOS asks. While expansion is enabled, Clipp rechecks permissions and the keyboard listener automatically, including after sleep.
+
 Use **Try this shortcut** to preview a draft inside settings. Use the picker’s **Snippets** filter to insert a snippet manually, including one whose automatic shortcut is disabled. Personal example placeholders start disabled.
 
 Typed expansion preserves the previous clipboard unless something newer is copied during insertion. **Expansion feedback** offers a subtle highlight, a badge, or no visual feedback, plus an optional soft pop. Undo behavior and text-field support depend on the destination app.
