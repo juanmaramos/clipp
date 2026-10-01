@@ -2,7 +2,7 @@
 
 All notable changes to Clipp will be documented in this file.
 
-## Unreleased
+## 2.7.3 — 2026-10-01
 
 - Let already-pressed keys and modifiers release during expansion, while preserving the order of newly typed key pairs and Space delimiters.
 - Stop suppressing physical keyboard events after a paste, avoiding dropped releases or typing immediately afterward.
