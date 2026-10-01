@@ -2,6 +2,12 @@
 
 All notable changes to Clipp will be documented in this file.
 
+## 2.7.3 — 2026-10-01
+
+- Let already-pressed keys and modifiers release during expansion, while preserving the order of newly typed key pairs and Space delimiters.
+- Stop suppressing physical keyboard events after a paste, avoiding dropped releases or typing immediately afterward.
+- Check the focused text field only when a complete shortcut matches, and use elapsed-time deadlines for replacement waits so slow Accessibility replies do not multiply the delay.
+
 ## 2.7.2 — 2026-10-01
 
 - Recover disabled or invalid keyboard listeners and recheck expansion permission while typed shortcuts are enabled, including after sleep.

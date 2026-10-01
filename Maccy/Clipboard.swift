@@ -142,10 +142,7 @@ class Clipboard {
       vCode = KeyChord.pasteKey.QWERTYKeyCode
     }
 
-    let source = CGEventSource(stateID: .combinedSessionState)
-    // Disable local keyboard events while pasting
-    source?.setLocalEventsFilterDuringSuppressionState([.permitLocalMouseEvents, .permitSystemDefinedEvents],
-                                                       state: .eventSuppressionStateSuppressionInterval)
+    let source = Self.pasteEventSource()
 
     let keyVDown = CGEvent(keyboardEventSource: source, virtualKey: vCode, keyDown: true)
     let keyVUp = CGEvent(keyboardEventSource: source, virtualKey: vCode, keyDown: false)
@@ -155,6 +152,16 @@ class Clipboard {
     keyVUp?.setIntegerValueField(.eventSourceUserData, value: eventTag)
     keyVDown?.post(tap: .cgSessionEventTap)
     keyVUp?.post(tap: .cgSessionEventTap)
+  }
+
+  static func pasteEventSource() -> CGEventSource? {
+    let source = CGEventSource(stateID: .combinedSessionState)
+    // Physical key releases must still reach the editor while the synthetic paste is delivered.
+    source?.localEventsSuppressionInterval = 0
+    source?.setLocalEventsFilterDuringSuppressionState(
+      [.permitLocalKeyboardEvents, .permitLocalMouseEvents, .permitSystemDefinedEvents],
+      state: .eventSuppressionStateSuppressionInterval)
+    return source
   }
 
   func clear() {

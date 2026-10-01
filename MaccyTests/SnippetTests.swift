@@ -70,6 +70,75 @@ final class SnippetTests: XCTestCase {
     XCTAssertNil(matcher.append("person@example.com", snippets: [email]))
   }
 
+  private func keyboardEvent(_ code: CGKeyCode, down: Bool, repeating: Bool = false) throws -> CGEvent {
+    let event = try XCTUnwrap(CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: down))
+    event.setIntegerValueField(.keyboardEventAutorepeat, value: repeating ? 1 : 0)
+    return event
+  }
+
+  func testExpansionDoesNotHoldReleasesOfAlreadyDeliveredTriggerKeys() throws {
+    var buffer = ExpansionEventBuffer()
+    // e and m were pressed before the replacement began; their releases must reach the app now.
+    XCTAssertFalse(buffer.append(try keyboardEvent(14, down: false)))
+    XCTAssertFalse(buffer.append(try keyboardEvent(46, down: false)))
+    XCTAssertTrue(buffer.drain().isEmpty)
+  }
+
+  func testTypingAheadKeepsNewKeyPairsInOrderWithoutHoldingTriggerRelease() throws {
+    var buffer = ExpansionEventBuffer()
+    XCTAssertTrue(buffer.append(try keyboardEvent(7, down: true)))
+    XCTAssertFalse(buffer.append(try keyboardEvent(46, down: false)))
+    XCTAssertTrue(buffer.append(try keyboardEvent(7, down: false)))
+    let events = buffer.drain()
+    XCTAssertEqual(events.map(\.type), [.keyDown, .keyUp])
+    XCTAssertEqual(events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [7, 7])
+  }
+
+  func testExpansionDoesNotHoldModifierReleaseOrRepeatOfDeliveredKey() throws {
+    var buffer = ExpansionEventBuffer()
+    let shiftUp = try keyboardEvent(56, down: false)
+    shiftUp.type = .flagsChanged
+    XCTAssertFalse(buffer.append(shiftUp))
+    XCTAssertFalse(buffer.append(try keyboardEvent(14, down: true, repeating: true)))
+    XCTAssertFalse(buffer.append(try keyboardEvent(14, down: false)))
+    XCTAssertTrue(buffer.drain().isEmpty)
+  }
+
+  func testQueuedRepeatStaysWithItsKeyDownAndKeyUp() throws {
+    var buffer = ExpansionEventBuffer()
+    XCTAssertTrue(buffer.append(try keyboardEvent(7, down: true)))
+    XCTAssertTrue(buffer.append(try keyboardEvent(7, down: true, repeating: true)))
+    XCTAssertTrue(buffer.append(try keyboardEvent(7, down: false)))
+    XCTAssertEqual(buffer.drain().map(\.type), [.keyDown, .keyDown, .keyUp])
+  }
+
+  func testDrainingBeforePhysicalReleaseDoesNotSwallowTheLaterKeyUp() throws {
+    var buffer = ExpansionEventBuffer()
+    XCTAssertTrue(buffer.append(try keyboardEvent(7, down: true)))
+    XCTAssertEqual(buffer.drain().count, 1)
+    XCTAssertFalse(buffer.append(try keyboardEvent(7, down: false)))
+    XCTAssertTrue(buffer.drain().isEmpty)
+  }
+
+  func testHeldSpaceReleaseWaitsForDelimiterReplay() throws {
+    var buffer = ExpansionEventBuffer()
+    buffer.holdKeyDown(49)
+    XCTAssertTrue(buffer.append(try keyboardEvent(49, down: false)))
+    XCTAssertTrue(buffer.append(try keyboardEvent(7, down: true)))
+    XCTAssertTrue(buffer.append(try keyboardEvent(7, down: false)))
+    // On failure, the caller replays Space down before draining; its release must precede typing ahead.
+    let events = buffer.drain()
+    XCTAssertEqual(events.map(\.type), [.keyUp, .keyDown, .keyUp])
+    XCTAssertEqual(events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [49, 7, 7])
+  }
+
+  func testPasteDoesNotSuppressPhysicalTypingOrKeyReleases() throws {
+    let source = try XCTUnwrap(Clipboard.pasteEventSource())
+    XCTAssertEqual(source.localEventsSuppressionInterval, 0)
+    XCTAssertTrue(source.getLocalEventsFilterDuringSuppressionState(.eventSuppressionStateSuppressionInterval)
+      .contains(.permitLocalKeyboardEvents))
+  }
+
   func testSpaceModePreservesDelimiterAndAllowsBackspace() {
     var matcher = SnippetMatcher()
     var snippet = email

@@ -21,9 +21,9 @@ final class TextExpansionService {
   @ObservationIgnored private var healthTask: Task<Void, Never>?
   @ObservationIgnored private var transactionTask: Task<Void, Never>?
   @ObservationIgnored private var matcher = SnippetMatcher()
-  @ObservationIgnored private var lastElement: AXUIElement?
+  @ObservationIgnored private var lastApplication: pid_t?
   @ObservationIgnored private var lastInputAt = Date.distantPast
-  @ObservationIgnored private var queuedEvents: [CGEvent] = []
+  @ObservationIgnored private var queuedEvents = ExpansionEventBuffer()
   @ObservationIgnored private var isReplacing = false
   @ObservationIgnored private var feedbackPanel: NSPanel?
   @ObservationIgnored private var feedbackTask: Task<Void, Never>?
@@ -66,7 +66,7 @@ final class TextExpansionService {
         // Do not erase a replacement error or reset an in-flight match on a healthy check.
         if !wasEnabled || !isListening {
           matcher.reset()
-          lastElement = nil
+          lastApplication = nil
           isListening = true
           status = "Ready. Shortcuts expand in supported text fields."
         }
@@ -120,7 +120,7 @@ final class TextExpansionService {
   private func stopListening() {
     // A transaction owns the clipboard until it finishes; it must be allowed to clean up.
     matcher.reset()
-    lastElement = nil
+    lastApplication = nil
     if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
     if let tap { CFMachPortInvalidate(tap) }
     tap = nil
@@ -133,33 +133,31 @@ final class TextExpansionService {
     let unchanged = Unmanaged.passUnretained(event)
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
       matcher.reset()
-      lastElement = nil
+      lastApplication = nil
       isListening = Defaults[.textExpansionEnabled] && tap.map { Self.resumeTap($0) } == true
       status = isListening ? "Ready. Shortcuts expand in supported text fields." : "Keyboard monitoring paused. Retrying…"
       return unchanged
     }
     if event.getIntegerValueField(.eventSourceUserData) == Self.eventTag { return unchanged }
     if isReplacing {
-      if let copy = event.copy() { queuedEvents.append(copy) }
-      return nil
+      return queuedEvents.append(event) ? nil : unchanged
     }
     if type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown || type == .scrollWheel {
       matcher.reset()
-      lastElement = nil
+      lastApplication = nil
       return unchanged
     }
     guard type == .keyDown else { return unchanged }
     guard !IsSecureEventInputEnabled(), !NSApp.isActive,
           let app = NSWorkspace.shared.frontmostApplication,
           !Defaults[.expansionExcludedApps].contains(app.bundleIdentifier ?? ""),
-          allowsApplication(app.bundleIdentifier ?? ""),
-          let field = FocusedText.current(), !field.isSecure else {
-      matcher.reset(); lastElement = nil; return unchanged
+          allowsApplication(app.bundleIdentifier ?? "") else {
+      matcher.reset(); lastApplication = nil; return unchanged
     }
-    if lastElement == nil || !CFEqual(lastElement, field.element) || Date.now.timeIntervalSince(lastInputAt) > 10 {
+    if lastApplication != app.processIdentifier || Date.now.timeIntervalSince(lastInputAt) > 10 {
       matcher.reset()
     }
-    lastElement = field.element
+    lastApplication = app.processIdentifier
     lastInputAt = .now
     let flags = event.flags.intersection([.maskCommand, .maskControl, .maskAlternate])
     guard flags.isEmpty else { matcher.reset(); return unchanged }
@@ -180,18 +178,23 @@ final class TextExpansionService {
     }
     let text = String(utf16CodeUnits: characters, count: length)
     guard let match = matcher.append(text, snippets: SnippetLibrary.shared.definitions) else { return unchanged }
+    // Query Accessibility only for a complete trigger. Verify its actual text at the caret before editing.
+    guard let field = FocusedText.current(), !field.isSecure else { return unchanged }
     // Keep Space away from the target's autocorrection until the abbreviation is replaced.
     let delimiterEvent = match.snippet.waitsForSpace ? event.copy() : nil
     if match.snippet.waitsForSpace {
       guard delimiterEvent != nil else { return unchanged }
+      queuedEvents.holdKeyDown(code)
     }
     isReplacing = true
     transactionTask = Task {
       var attempted = false
       // Wait for the target to commit the final character; never select an unverified range.
-      for _ in 0..<20 {
+      let deadline = ContinuousClock.now.advanced(by: .milliseconds(200))
+      while ContinuousClock.now < deadline {
         try? await Task.sleep(for: .milliseconds(10))
-        guard let current = FocusedText.current(), CFEqual(current.element, field.element) else { break }
+        guard ContinuousClock.now < deadline,
+              let current = FocusedText.current(), CFEqual(current.element, field.element) else { break }
         if let selection = current.selection, let value = current.value, selection.length == 0,
            Self.replacementRange(value: value, caret: selection.location, match: match) != nil {
           attempted = await replace(match, in: current)
@@ -234,8 +237,10 @@ final class TextExpansionService {
     let ownedCount = writeTemporary(rendered, to: pasteboard)
     postPaste()
     var inserted = false
-    for _ in 0..<50 {
+    let deadline = ContinuousClock.now.advanced(by: .milliseconds(500))
+    while ContinuousClock.now < deadline {
       try? await Task.sleep(for: .milliseconds(10))
+      guard ContinuousClock.now < deadline else { break }
       if field.contains(rendered, at: range.location) { inserted = true; break }
     }
     // Never replace a clipboard item copied by the user or another application during expansion.
@@ -281,8 +286,10 @@ final class TextExpansionService {
       let insertionLocation = field?.selection?.location
       Clipboard.shared.copy(text)
       postPaste()
-      for _ in 0..<50 {
+      let deadline = ContinuousClock.now.advanced(by: .milliseconds(500))
+      while ContinuousClock.now < deadline {
         try? await Task.sleep(for: .milliseconds(10))
+        guard ContinuousClock.now < deadline else { break }
         if let field, let insertionLocation, field.contains(text, at: insertionLocation) { break }
       }
       if let field, let insertionLocation, field.contains(text, at: insertionLocation) {
@@ -304,8 +311,7 @@ final class TextExpansionService {
   }
 
   private func flushEvents() {
-    let events = queuedEvents
-    queuedEvents.removeAll()
+    let events = queuedEvents.drain()
     events.forEach { event in
       event.setIntegerValueField(.eventSourceUserData, value: Self.eventTag)
       event.post(tap: .cgSessionEventTap)
@@ -377,6 +383,39 @@ final class TextExpansionService {
       }
       panel.orderOut(nil)
     }
+  }
+}
+
+struct ExpansionEventBuffer {
+  private var events: [CGEvent] = []
+  private var heldKeys: Set<Int64> = []
+
+  // A Space delimiter is held separately until replacement succeeds or the original key is replayed.
+  mutating func holdKeyDown(_ code: Int64) { heldKeys.insert(code) }
+
+  mutating func append(_ event: CGEvent) -> Bool {
+    let code = event.getIntegerValueField(.keyboardEventKeycode)
+    switch event.type {
+    case .flagsChanged:
+      return false
+    case .keyUp:
+      // Delaying the release of an already delivered key can trigger macOS press-and-hold.
+      guard heldKeys.contains(code) else { return false }
+    case .keyDown:
+      if event.getIntegerValueField(.keyboardEventAutorepeat) != 0, !heldKeys.contains(code) { return false }
+    default:
+      break
+    }
+    guard let copy = event.copy() else { return false }
+    if event.type == .keyDown { heldKeys.insert(code) }
+    if event.type == .keyUp { heldKeys.remove(code) }
+    events.append(copy)
+    return true
+  }
+
+  mutating func drain() -> [CGEvent] {
+    defer { events.removeAll(); heldKeys.removeAll() }
+    return events
   }
 }
 
