@@ -46,7 +46,7 @@ Clipp 2.7 is a Developer ID utility outside App Sandbox, because system-wide tex
 
 On upgrade, Clipp imports its old container preferences once, preserving newer explicit values, and opens an existing container database in place. It does not copy only the SQLite file or lose its WAL/external data. New installations store data in `~/Library/Application Support/Clipp`. If existing data cannot be read, the app offers Retry or Quit rather than silently opening an empty database.
 
-Users enable typed expansion in Settings → Snippets, then allow Accessibility. Grant Input Monitoring only if the status asks for it. Permission status and links are shown there. Password fields, secure input, excluded apps, input-method composition, and unsupported text fields are skipped. Pasting a selected snippet uses the same keyboard-layout handling as history; typed expansion preserves the previous clipboard when no newer copy has replaced it.
+Users enable typed expansion in Settings → Snippets, then allow Accessibility, named Device Control and Data Access on macOS 27. This grants event listening and posting; a separate Input Monitoring grant is not required. The service verifies the actual event tap and retries while expansion is enabled. Permission status and its Settings link are shown there. Password fields, secure input, excluded apps, input-method composition, and unsupported text fields are skipped. Pasting a selected snippet uses the same keyboard-layout handling as history; typed expansion preserves the previous clipboard when no newer copy has replaced it.
 
 ## Development
 
