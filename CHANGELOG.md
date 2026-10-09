@@ -2,6 +2,11 @@
 
 All notable changes to Clipp will be documented in this file.
 
+## 2.7.4 — 2026-10-09
+
+- Pass Command, Control, and Option shortcuts through before text-app checks when no replacement is in progress.
+- Keep modifier releases ordered with queued shortcuts during replacement, so chords such as Command-Tab are replayed intact.
+
 ## 2.7.3 — 2026-10-01
 
 - Let already-pressed keys and modifiers release during expansion, while preserving the order of newly typed key pairs and Space delimiters.
