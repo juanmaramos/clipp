@@ -1,8 +1,67 @@
 import AppKit
+import Darwin
 import Defaults
 import SwiftData
 import XCTest
 @testable import Clipp
+
+private final class ExpansionTapTestSource: @unchecked Sendable {
+  private weak var runtime: ExpansionEventTapRuntime?
+  private let lock = NSLock()
+  private var pending: (CGEventType, CGEvent, CGEventTapProxy?)?
+  private var wasForwarded = false
+  private let handled = DispatchSemaphore(value: 0)
+  private(set) var source: CFRunLoopSource?
+
+  init(runtime: ExpansionEventTapRuntime) throws {
+    self.runtime = runtime
+    var context = CFRunLoopSourceContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(),
+                                         retain: nil, release: nil, copyDescription: nil, equal: nil,
+                                         hash: nil, schedule: nil, cancel: nil, perform: { info in
+      guard let info else { return }
+      autoreleasepool {
+        Unmanaged<ExpansionTapTestSource>.fromOpaque(info).takeUnretainedValue().handlePendingEvent()
+      }
+    })
+    guard let source = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context) else {
+      throw NSError(domain: "ExpansionTapTestSource", code: 1)
+    }
+    self.source = source
+  }
+
+  deinit {
+    if let source { CFRunLoopSourceInvalidate(source) }
+  }
+
+  func send(_ type: CGEventType, _ event: CGEvent, proxy: CGEventTapProxy? = nil,
+            timeout: DispatchTimeInterval = .seconds(1)) -> Bool? {
+    lock.lock()
+    pending = (type, event, proxy)
+    wasForwarded = false
+    lock.unlock()
+    guard let source else { return nil }
+    runtime?.signalForTesting(source)
+    guard handled.wait(timeout: .now() + timeout) == .success else { return nil }
+    lock.lock()
+    defer { lock.unlock() }
+    return wasForwarded
+  }
+
+  private func handlePendingEvent() {
+    lock.lock()
+    let queued = pending
+    pending = nil
+    lock.unlock()
+    guard let queued, let runtime else { return }
+    let (type, event, proxy) = queued
+    let result = runtime.process(proxy, type, event)
+    lock.lock()
+    wasForwarded = result?.takeUnretainedValue() === event
+    lock.unlock()
+    handled.signal()
+  }
+
+}
 
 @MainActor
 final class SnippetTests: XCTestCase {
@@ -18,7 +77,7 @@ final class SnippetTests: XCTestCase {
   func testHealthyListenerIsNotInterruptedByHealthCheck() throws {
     let tap = try listenerPort()
     defer { CFMachPortInvalidate(tap) }
-    XCTAssertTrue(TextExpansionService.resumeTap(tap, isEnabled: { _ in true }, enable: { _ in
+    XCTAssertTrue(ExpansionEventTapRuntime.resumeTap(tap, isEnabled: { _ in true }, enable: { _ in
       XCTFail("A healthy listener must not be restarted")
     }))
   }
@@ -28,7 +87,7 @@ final class SnippetTests: XCTestCase {
     defer { CFMachPortInvalidate(tap) }
     var enabled = false
     var attempts = 0
-    XCTAssertTrue(TextExpansionService.resumeTap(tap, isEnabled: { _ in enabled }, enable: { _ in
+    XCTAssertTrue(ExpansionEventTapRuntime.resumeTap(tap, isEnabled: { _ in enabled }, enable: { _ in
       attempts += 1
       enabled = true
     }))
@@ -40,7 +99,7 @@ final class SnippetTests: XCTestCase {
     let tap = try listenerPort()
     defer { CFMachPortInvalidate(tap) }
     var attempts = 0
-    XCTAssertFalse(TextExpansionService.resumeTap(tap, isEnabled: { _ in false }, enable: { _ in
+    XCTAssertFalse(ExpansionEventTapRuntime.resumeTap(tap, isEnabled: { _ in false }, enable: { _ in
       attempts += 1
     }))
     XCTAssertEqual(attempts, 1)
@@ -49,7 +108,7 @@ final class SnippetTests: XCTestCase {
   func testInvalidListenerRequiresRecreation() throws {
     let tap = try listenerPort()
     CFMachPortInvalidate(tap)
-    XCTAssertFalse(TextExpansionService.resumeTap(tap, isEnabled: { _ in
+    XCTAssertFalse(ExpansionEventTapRuntime.resumeTap(tap, isEnabled: { _ in
       XCTFail("An invalid port must not be queried as an event tap")
       return true
     }, enable: { _ in XCTFail("An invalid port cannot be resumed") }))
@@ -57,7 +116,7 @@ final class SnippetTests: XCTestCase {
 
   func testListenerInvalidatedDuringResumeIsNotReportedHealthy() throws {
     let tap = try listenerPort()
-    XCTAssertFalse(TextExpansionService.resumeTap(tap, isEnabled: { _ in false }, enable: {
+    XCTAssertFalse(ExpansionEventTapRuntime.resumeTap(tap, isEnabled: { _ in false }, enable: {
       CFMachPortInvalidate($0)
     }))
   }
@@ -70,10 +129,17 @@ final class SnippetTests: XCTestCase {
     XCTAssertNil(matcher.append("person@example.com", snippets: [email]))
   }
 
-  private func keyboardEvent(_ code: CGKeyCode, down: Bool, repeating: Bool = false) throws -> CGEvent {
+  private func keyboardEvent(_ code: CGKeyCode, down: Bool, repeating: Bool = false,
+                             characters: String? = nil) throws -> CGEvent {
     let event = try XCTUnwrap(CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: down))
     event.setIntegerValueField(.keyboardEventAutorepeat, value: repeating ? 1 : 0)
     event.flags = []
+    if let characters {
+      let units = Array(characters.utf16)
+      units.withUnsafeBufferPointer {
+        event.keyboardSetUnicodeString(stringLength: units.count, unicodeString: $0.baseAddress!)
+      }
+    }
     return event
   }
 
@@ -94,61 +160,233 @@ final class SnippetTests: XCTestCase {
     }
   }
 
-  func testIdleShortcutIsForwardedAndLeavesTheBufferEmpty() throws {
-    let service = TextExpansionService()
-    let event = try keyboardEvent(48, down: true)
-    event.flags = .maskCommand
-
-    let forwarded = service.handle(.keyDown, event)?.takeUnretainedValue()
-
-    XCTAssertTrue(forwarded === event)
-    var queuedEvents = service.queuedEvents
-    XCTAssertTrue(queuedEvents.drain().isEmpty)
+  func testIdleShortcutPassesOnRegisteredTapRunloopWhileMainActorIsBlocked() async throws {
+    let runtime = ExpansionEventTapRuntime(candidateHandler: { _ in })
+    let driver = try ExpansionTapTestSource(runtime: runtime)
+    await runtime.updatePolicy(ExpansionTapPolicy(enabled: true, applicationPID: 42,
+                                                   applicationIdentifier: "test.app",
+                                                   validUntil: ContinuousClock.now.advanced(by: .seconds(5))))
+    await runtime.startForTesting(source: try XCTUnwrap(driver.source))
+    // Direct synchronous sends block this MainActor while exercising the registered runloop source.
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(6, down: true, characters: "z")), true)
+    let tabDown = try keyboardEvent(48, down: true)
+    tabDown.flags = .maskCommand
+    XCTAssertEqual(driver.send(.keyDown, tabDown), true)
+    XCTAssertEqual(driver.send(.keyUp, try keyboardEvent(48, down: false)), true)
+    await runtime.shutdown()
   }
 
-  func testModifierReleaseStaysQueuedAfterShortcutDuringReplacement() throws {
-    let shortcuts: [(flags: CGEventFlags, modifierCode: CGKeyCode)] = [
-      (.maskCommand, 55), (.maskControl, 59), (.maskAlternate, 58),
-    ]
-    for (flags, modifierCode) in shortcuts {
-      let service = TextExpansionService()
-      service.isReplacing = true
+  func testTapTestSourceDistinguishesTimeoutFromForwarding() throws {
+    let runtime = ExpansionEventTapRuntime(candidateHandler: { _ in })
+    let driver = try ExpansionTapTestSource(runtime: runtime)
+    XCTAssertNil(driver.send(.keyDown, try keyboardEvent(48, down: true), timeout: .milliseconds(10)))
+  }
 
-      let tabDown = try keyboardEvent(48, down: true)
-      tabDown.flags = flags
-      XCTAssertNil(service.handle(.keyDown, tabDown))
+  func testPreparationShortcutReplaysHeldDelimiterAndQueuedKeysBeforePassingChord() async throws {
+    let posted = LockedEventList()
+    let snippet = SnippetDefinition(name: "Test", abbreviation: "ab", content: "expanded",
+                                    isEnabled: true, waitsForSpace: true)
+    let runtime = ExpansionEventTapRuntime(preparationTimeout: .seconds(2), eventPoster: { proxy, event in
+      posted.append(proxy, event)
+    }, candidateHandler: { _ in })
+    let driver = try ExpansionTapTestSource(runtime: runtime)
+    await runtime.updatePolicy(ExpansionTapPolicy(enabled: true, snippets: [snippet], applicationPID: 42,
+                                                   applicationIdentifier: "test.app",
+                                                   validUntil: ContinuousClock.now.advanced(by: .seconds(5))))
+    await runtime.startForTesting(source: try XCTUnwrap(driver.source))
 
-      let modifierUp = try keyboardEvent(modifierCode, down: false)
-      modifierUp.type = .flagsChanged
-      modifierUp.flags = []
-      XCTAssertNil(service.handle(.flagsChanged, modifierUp))
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(0, down: true, characters: "a")), true)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(11, down: true, characters: "b")), true)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(49, down: true, characters: " ")), false)
+    XCTAssertEqual(driver.send(.keyUp, try keyboardEvent(49, down: false)), false)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(7, down: true, characters: "x")), false)
+    XCTAssertEqual(driver.send(.keyUp, try keyboardEvent(7, down: false)), false)
 
-      let tabUp = try keyboardEvent(48, down: false)
-      tabUp.flags = []
-      XCTAssertNil(service.handle(.keyUp, tabUp))
-      var queuedEvents = service.queuedEvents
-      let events = queuedEvents.drain()
-      XCTAssertEqual(events.map(\.type), [.keyDown, .flagsChanged, .keyUp])
-      XCTAssertEqual(events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [48, Int64(modifierCode), 48])
+    let taggedPaste = try keyboardEvent(9, down: true)
+    taggedPaste.flags = .maskCommand
+    taggedPaste.setIntegerValueField(.eventSourceUserData, value: ExpansionEventTapRuntime.eventTag)
+    XCTAssertEqual(driver.send(.keyDown, taggedPaste), true)
+
+    let commandDown = try keyboardEvent(55, down: false)
+    commandDown.type = .flagsChanged
+    commandDown.flags = .maskCommand
+    XCTAssertEqual(driver.send(.flagsChanged, commandDown), true)
+    let tabDown = try keyboardEvent(48, down: true)
+    tabDown.flags = .maskCommand
+    XCTAssertEqual(driver.send(.keyDown, tabDown), true)
+
+    let events = posted.events
+    XCTAssertEqual(events.map(\.type), [.keyDown, .keyUp, .keyDown, .keyUp])
+    XCTAssertEqual(events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [49, 49, 7, 7])
+    await runtime.shutdown()
+  }
+
+  func testModifiedShortcutKeyCancelsPreparationAndReplaysThroughCallbackProxy() async throws {
+    let posted = LockedEventList()
+    let snippet = SnippetDefinition(name: "Test", abbreviation: "ab", content: "expanded",
+                                    isEnabled: true, waitsForSpace: true)
+    let runtime = ExpansionEventTapRuntime(preparationTimeout: .seconds(2), eventPoster: { proxy, event in
+      posted.append(proxy, event)
+    }, candidateHandler: { _ in })
+    let driver = try ExpansionTapTestSource(runtime: runtime)
+    await runtime.updatePolicy(ExpansionTapPolicy(enabled: true, snippets: [snippet], applicationPID: 42,
+                                                   applicationIdentifier: "test.app",
+                                                   validUntil: ContinuousClock.now.advanced(by: .seconds(5))))
+    await runtime.startForTesting(source: try XCTUnwrap(driver.source))
+
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(0, down: true, characters: "a")), true)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(11, down: true, characters: "b")), true)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(49, down: true, characters: " ")), false)
+    let callbackProxy = unsafeBitCast(UInt(0x1234), to: CGEventTapProxy.self)
+    let tabDown = try keyboardEvent(48, down: true)
+    tabDown.flags = .maskCommand
+    XCTAssertEqual(driver.send(.keyDown, tabDown, proxy: callbackProxy), true)
+
+    XCTAssertEqual(posted.events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [49])
+    XCTAssertEqual(posted.proxies.count, 1)
+    XCTAssertEqual(posted.proxies.first!, callbackProxy)
+    await runtime.shutdown()
+  }
+
+  func testPreparationExpiryRejectsLateCommitButCommittedGateCannotExpire() async throws {
+    let expired = ExpansionCommitGate(generation: 7, timeout: .milliseconds(10))
+    try await Task.sleep(for: .milliseconds(25))
+    XCTAssertFalse(expired.beginCommit(currentGeneration: 7))
+    XCTAssertEqual(expired.phase(), .cancelled)
+
+    let committed = ExpansionCommitGate(generation: 7, timeout: .milliseconds(10))
+    XCTAssertTrue(committed.beginCommit(currentGeneration: 7))
+    try await Task.sleep(for: .milliseconds(25))
+    XCTAssertEqual(committed.phase(), .committed)
+    XCTAssertFalse(committed.cancelPreparation())
+    XCTAssertFalse(committed.beginCommit(currentGeneration: 8))
+  }
+
+  func testPreparationDeadlineReplaysBufferedEventsWhileMainActorIsBlocked() async throws {
+    let posted = LockedEventList()
+    let didCommit = LockedBool()
+    let replayCompleted = DispatchSemaphore(value: 0)
+    let handled = expectation(description: "candidate reaches main actor after it unblocks")
+    let snippet = SnippetDefinition(name: "Test", abbreviation: "ab", content: "expanded",
+                                    isEnabled: true, waitsForSpace: true)
+    let runtime = ExpansionEventTapRuntime(preparationTimeout: .milliseconds(500), eventPoster: { proxy, event in
+      posted.append(proxy, event)
+    }, preparationTimerObserver: { _, phase in
+      if phase == .cancelled { replayCompleted.signal() }
+    }, candidateHandler: { candidate in
+      didCommit.set(candidate.gate.beginCommit(currentGeneration: candidate.generation))
+      handled.fulfill()
+    })
+    let driver = try ExpansionTapTestSource(runtime: runtime)
+    await runtime.updatePolicy(ExpansionTapPolicy(enabled: true, snippets: [snippet], applicationPID: 42,
+                                                   applicationIdentifier: "test.app",
+                                                   validUntil: ContinuousClock.now.advanced(by: .seconds(5))))
+    await runtime.startForTesting(source: try XCTUnwrap(driver.source))
+
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(0, down: true, characters: "a")), true)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(11, down: true, characters: "b")), true)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(49, down: true, characters: " ")), false)
+    XCTAssertEqual(driver.send(.keyUp, try keyboardEvent(49, down: false)), false)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(7, down: true, characters: "x")), false)
+    XCTAssertEqual(driver.send(.keyUp, try keyboardEvent(7, down: false)), false)
+
+    // Waiting here blocks MainActor until the runloop timer has replayed the queued events.
+    XCTAssertEqual(replayCompleted.wait(timeout: .now() + 2), .success)
+    XCTAssertEqual(posted.events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [49, 49, 7, 7])
+    await fulfillment(of: [handled], timeout: 1)
+    XCTAssertFalse(didCommit.value)
+    await runtime.shutdown()
+  }
+
+  func testPolicyGenerationMustMatchAtCommit() {
+    let gate = ExpansionCommitGate(generation: 3, timeout: .seconds(1))
+    XCTAssertFalse(gate.beginCommit(currentGeneration: 4))
+    XCTAssertEqual(gate.phase(), .cancelled)
+  }
+
+  func testApplicationPolicyChangeCancelsPendingCandidate() async throws {
+    let posted = LockedEventList()
+    let candidate = LockedCandidate()
+    let handled = expectation(description: "matching candidate captured")
+    let snippet = SnippetDefinition(name: "Test", abbreviation: "ab", content: "expanded",
+                                    isEnabled: true, waitsForSpace: true)
+    let runtime = ExpansionEventTapRuntime(preparationTimeout: .seconds(2), eventPoster: { proxy, event in
+      posted.append(proxy, event)
+    }, candidateHandler: { match in
+      candidate.set(match)
+      handled.fulfill()
+    })
+    let driver = try ExpansionTapTestSource(runtime: runtime)
+    var policy = ExpansionTapPolicy(enabled: true, snippets: [snippet], applicationPID: 42,
+                                    applicationIdentifier: "first.app", generation: 1,
+                                    validUntil: ContinuousClock.now.advanced(by: .seconds(5)))
+    await runtime.updatePolicy(policy)
+    await runtime.startForTesting(source: try XCTUnwrap(driver.source))
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(0, down: true, characters: "a")), true)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(11, down: true, characters: "b")), true)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(49, down: true, characters: " ")), false)
+
+    policy.generation = 2
+    policy.applicationPID = 84
+    policy.applicationIdentifier = "second.app"
+    await runtime.updatePolicy(policy)
+    await fulfillment(of: [handled], timeout: 1)
+    let matched = try XCTUnwrap(candidate.value)
+    XCTAssertFalse(matched.gate.beginCommit(currentGeneration: 2))
+    XCTAssertEqual(posted.events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [49])
+    await runtime.shutdown()
+  }
+
+  private final class LockedEventList {
+    private let lock = NSLock()
+    private var stored: [CGEvent] = []
+    private var storedProxies: [CGEventTapProxy?] = []
+    var events: [CGEvent] {
+      lock.lock()
+      defer { lock.unlock() }
+      return stored
+    }
+    var proxies: [CGEventTapProxy?] {
+      lock.lock()
+      defer { lock.unlock() }
+      return storedProxies
+    }
+    func append(_ proxy: CGEventTapProxy?, _ event: CGEvent) {
+      lock.lock()
+      stored.append(event)
+      storedProxies.append(proxy)
+      lock.unlock()
     }
   }
 
-  func testModifiedRepeatOfQueuedKeyStaysWithItsPair() throws {
-    let service = TextExpansionService()
-    service.isReplacing = true
+  private final class LockedBool {
+    private let lock = NSLock()
+    private var stored = false
+    var value: Bool {
+      lock.lock()
+      defer { lock.unlock() }
+      return stored
+    }
+    func set(_ value: Bool) {
+      lock.lock()
+      stored = value
+      lock.unlock()
+    }
+  }
 
-    XCTAssertNil(service.handle(.keyDown, try keyboardEvent(7, down: true)))
-    let repeated = try keyboardEvent(7, down: true, repeating: true)
-    repeated.flags = .maskCommand
-    XCTAssertNil(service.handle(.keyDown, repeated))
-    let released = try keyboardEvent(7, down: false)
-    released.flags = .maskCommand
-    XCTAssertNil(service.handle(.keyUp, released))
-
-    var queuedEvents = service.queuedEvents
-    let events = queuedEvents.drain()
-    XCTAssertEqual(events.map(\.type), [.keyDown, .keyDown, .keyUp])
-    XCTAssertEqual(events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [7, 7, 7])
+  private final class LockedCandidate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: ExpansionCandidate?
+    var value: ExpansionCandidate? {
+      lock.lock()
+      defer { lock.unlock() }
+      return stored
+    }
+    func set(_ candidate: ExpansionCandidate) {
+      lock.lock()
+      stored = candidate
+      lock.unlock()
+    }
   }
 
   func testModifierChangesPassUntilAShortcutIsQueued() throws {
@@ -170,16 +408,78 @@ final class SnippetTests: XCTestCase {
     XCTAssertFalse(buffer.append(commandUp))
   }
 
-  func testTaggedShortcutPassesDuringReplacement() throws {
-    let service = TextExpansionService()
-    service.isReplacing = true
-    let event = try keyboardEvent(9, down: true)
-    event.flags = .maskCommand
-    event.setIntegerValueField(.eventSourceUserData, value: TextExpansionService.eventTag)
+  func testCommandControlAndOptionReleasesStayAfterTheirQueuedShortcut() throws {
+    let shortcuts: [(CGEventFlags, CGKeyCode)] = [
+      (.maskCommand, 55), (.maskControl, 59), (.maskAlternate, 58),
+    ]
+    for (flags, modifierCode) in shortcuts {
+      var buffer = ExpansionEventBuffer()
+      let shortcutDown = try keyboardEvent(48, down: true)
+      shortcutDown.flags = flags
+      XCTAssertTrue(buffer.append(shortcutDown))
+      let modifierUp = try keyboardEvent(modifierCode, down: false)
+      modifierUp.type = .flagsChanged
+      modifierUp.flags = []
+      XCTAssertTrue(buffer.append(modifierUp))
+      XCTAssertTrue(buffer.append(try keyboardEvent(48, down: false)))
+      XCTAssertEqual(buffer.drain().map(\.type), [.keyDown, .flagsChanged, .keyUp])
+    }
+  }
 
-    XCTAssertTrue(service.handle(.keyDown, event)?.takeUnretainedValue() === event)
-    var queuedEvents = service.queuedEvents
-    XCTAssertTrue(queuedEvents.drain().isEmpty)
+  func testPreparationTimeoutNeverReleasesCommittedKeyBuffer() async throws {
+    let posted = LockedEventList()
+    let committedTimerFired = DispatchSemaphore(value: 0)
+    let runtime = ExpansionEventTapRuntime(preparationTimeout: .milliseconds(500), eventPoster: { proxy, event in
+      posted.append(proxy, event)
+    }, preparationTimerObserver: { _, phase in
+      if phase == .committed { committedTimerFired.signal() }
+    }, candidateHandler: { _ in })
+    let driver = try ExpansionTapTestSource(runtime: runtime)
+    await runtime.startForTesting(source: try XCTUnwrap(driver.source))
+    let optionalTransaction = await runtime.beginManualTransaction()
+    let transaction = try XCTUnwrap(optionalTransaction)
+    XCTAssertTrue(transaction.gate.beginCommit(currentGeneration: nil))
+    let taggedPaste = try keyboardEvent(9, down: true)
+    taggedPaste.flags = .maskCommand
+    taggedPaste.setIntegerValueField(.eventSourceUserData, value: ExpansionEventTapRuntime.eventTag)
+    XCTAssertEqual(driver.send(.keyDown, taggedPaste), true)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(7, down: true, characters: "x")), false)
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(7, down: true, repeating: true)), false)
+    XCTAssertEqual(driver.send(.keyUp, try keyboardEvent(7, down: false)), false)
+    let tabDown = try keyboardEvent(48, down: true)
+    tabDown.flags = .maskCommand
+    XCTAssertEqual(driver.send(.keyDown, tabDown), false)
+    let commandUp = try keyboardEvent(55, down: false)
+    commandUp.type = .flagsChanged
+    XCTAssertEqual(driver.send(.flagsChanged, commandUp), false)
+    XCTAssertEqual(committedTimerFired.wait(timeout: .now() + 2), .success)
+    XCTAssertEqual(transaction.gate.phase(), .committed)
+    XCTAssertTrue(posted.events.isEmpty)
+    await runtime.finishManualTransaction(transaction)
+    XCTAssertEqual(posted.events.map(\.type), [.keyDown, .keyDown, .keyUp, .keyDown, .flagsChanged])
+    XCTAssertEqual(posted.events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [7, 7, 7, 48, 55])
+    await runtime.shutdown()
+  }
+
+  func testStaleManualCompletionCannotFlushNewerTransaction() async throws {
+    let posted = LockedEventList()
+    let runtime = ExpansionEventTapRuntime(eventPoster: { proxy, event in posted.append(proxy, event) },
+                                           candidateHandler: { _ in })
+    let driver = try ExpansionTapTestSource(runtime: runtime)
+    await runtime.startForTesting(source: try XCTUnwrap(driver.source))
+    let optionalOlder = await runtime.beginManualTransaction()
+    let older = try XCTUnwrap(optionalOlder)
+    await runtime.cancelManualTransaction(older)
+    let optionalNewer = await runtime.beginManualTransaction()
+    let newer = try XCTUnwrap(optionalNewer)
+    XCTAssertTrue(newer.gate.beginCommit(currentGeneration: nil))
+    XCTAssertEqual(driver.send(.keyDown, try keyboardEvent(7, down: true)), false)
+
+    await runtime.finishManualTransaction(older)
+    XCTAssertTrue(posted.events.isEmpty)
+    await runtime.finishManualTransaction(newer)
+    XCTAssertEqual(posted.events.map(\.type), [.keyDown])
+    await runtime.shutdown()
   }
 
   func testExpansionDoesNotHoldReleasesOfAlreadyDeliveredTriggerKeys() throws {

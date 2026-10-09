@@ -6,6 +6,7 @@ import Observation
 @Observable
 final class SnippetLibrary {
   static let shared = SnippetLibrary(context: Storage.shared.context)
+  static let definitionsDidChange = Notification.Name("SnippetLibraryDefinitionsDidChange")
   private(set) var snippets: [Snippet] = []
   var editorSelection: UUID?
   var message: String?
@@ -33,6 +34,7 @@ final class SnippetLibrary {
     do {
       try context.save()
       reload()
+      NotificationCenter.default.post(name: Self.definitionsDidChange, object: self)
       editorSelection = definition.id
       return true
     } catch {
@@ -46,7 +48,8 @@ final class SnippetLibrary {
   func delete(_ snippet: Snippet) -> Bool {
     context.delete(snippet)
     do {
-      try context.save(); reload(); editorSelection = snippets.first?.id
+      try context.save(); reload(); NotificationCenter.default.post(name: Self.definitionsDidChange, object: self)
+      editorSelection = snippets.first?.id
       return true
     } catch {
       context.rollback()
@@ -92,7 +95,11 @@ final class SnippetLibrary {
       additions.append(Snippet(definition))
     }
     additions.forEach { context.insert($0) }
-    do { try context.save(); reload() }
+    do {
+      try context.save()
+      reload()
+      NotificationCenter.default.post(name: Self.definitionsDidChange, object: self)
+    }
     catch { additions.forEach { context.delete($0) }; throw error }
   }
 

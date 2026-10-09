@@ -2,6 +2,12 @@
 
 All notable changes to Clipp will be documented in this file.
 
+## 2.7.5 — 2026-10-09
+
+- Move keyboard event matching onto a dedicated runloop so a stalled main thread cannot block ordinary key and shortcut dispatch while expansion is idle.
+- Expire uncommitted replacements and replay their held delimiter and queued key pairs before late Accessibility or clipboard preparation can mutate the target.
+- Keep committed replacements serialized until temporary clipboard cleanup completes, and revalidate the focused app and text field before mutation.
+
 ## 2.7.4 — 2026-10-09
 
 - Pass Command, Control, and Option shortcuts through before text-app checks when no replacement is in progress.

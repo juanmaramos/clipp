@@ -133,6 +133,7 @@
 		8C2DC0FAA9F9F684E094F0A0 /* SnippetResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 542DE6F65EA5035E2132AF4C /* SnippetResultsView.swift */; };
 		19003348B5F3877A5B7F8475 /* SnippetsSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571444440A28E338191B9F00 /* SnippetsSettingsPane.swift */; };
 		FE0A3F08037F129373FCABB7 /* TextExpansionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39975590682AF0302F9C2D66 /* TextExpansionService.swift */; };
+		A77000000000000000000001 /* ExpansionEventTapRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = A77000000000000000000002 /* ExpansionEventTapRuntime.swift */; };
 		434C495050534E495050455442 /* SnippetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434C495050534E495050455452; };
 		434C4950505155414C49544231 /* QualityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434C4950505155414C49545231; };
 		434C495050535441545300002 /* UsageStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434C495050535441545300001; };
@@ -535,6 +536,7 @@
 		542DE6F65EA5035E2132AF4C /* SnippetResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/SnippetResultsView.swift; sourceTree = SOURCE_ROOT; };
 		571444440A28E338191B9F00 /* SnippetsSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/SnippetsSettingsPane.swift; sourceTree = SOURCE_ROOT; };
 		39975590682AF0302F9C2D66 /* TextExpansionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/TextExpansionService.swift; sourceTree = SOURCE_ROOT; };
+		A77000000000000000000002 /* ExpansionEventTapRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Snippets/ExpansionEventTapRuntime.swift; sourceTree = SOURCE_ROOT; };
 		434C495050534E495050455452 /* SnippetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaccyTests/SnippetTests.swift; sourceTree = SOURCE_ROOT; };
 		434C4950505155414C49545231 /* QualityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaccyTests/QualityTests.swift; sourceTree = SOURCE_ROOT; };
 		434C495050535441545300001 /* UsageStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maccy/Statistics/UsageStatistics.swift; sourceTree = SOURCE_ROOT; };
@@ -784,6 +786,7 @@
 				D770E5C0C6D1F697D3B581E3 /* SnippetLibrary.swift */,
 				542DE6F65EA5035E2132AF4C /* SnippetResultsView.swift */,
 				571444440A28E338191B9F00 /* SnippetsSettingsPane.swift */,
+				A77000000000000000000002 /* ExpansionEventTapRuntime.swift */,
 				39975590682AF0302F9C2D66 /* TextExpansionService.swift */,
 				2FBB7A252B5FECBB00C65BBE /* Extensions */,
 				DA68F91F28BD819E007E2F25 /* Intents */,
@@ -1060,6 +1063,7 @@
 				434C495050535441545300012 /* StatisticsSettingsPane.swift in Sources */,
 				19003348B5F3877A5B7F8475 /* SnippetsSettingsPane.swift in Sources */,
 				FE0A3F08037F129373FCABB7 /* TextExpansionService.swift in Sources */,
+				A77000000000000000000001 /* ExpansionEventTapRuntime.swift in Sources */,
 				DA19691C2C3F3EAC00258481 /* Collection+Surrounding.swift in Sources */,
 				DA1969142C3F11D600258481 /* PreviewItemView.swift in Sources */,
 				DAA072D52C40AC52006DDFD2 /* HistoryListView.swift in Sources */,
@@ -1705,7 +1709,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 66;
+				CURRENT_PROJECT_VERSION = 67;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = T569L7X7QJ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1721,7 +1725,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.7.4;
+				MARKETING_VERSION = 2.7.5;
 				PRODUCT_BUNDLE_IDENTIFIER = futurialabs.clipp.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1741,7 +1745,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 66;
+				CURRENT_PROJECT_VERSION = 67;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = T569L7X7QJ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1757,7 +1761,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.7.4;
+				MARKETING_VERSION = 2.7.5;
 				PRODUCT_BUNDLE_IDENTIFIER = futurialabs.clipp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

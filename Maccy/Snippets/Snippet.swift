@@ -45,7 +45,7 @@ final class Snippet {
   }
 }
 
-struct SnippetDefinition: Codable, Equatable, Identifiable {
+struct SnippetDefinition: Codable, Equatable, Identifiable, Sendable {
   var id = UUID()
   var name = ""
   var abbreviation = ""
@@ -147,7 +147,7 @@ enum SnippetTemplate {
 }
 
 struct SnippetMatcher {
-  struct Match {
+  struct Match: Sendable {
     var snippet: SnippetDefinition
     var typedText: String
     var suffix: String
