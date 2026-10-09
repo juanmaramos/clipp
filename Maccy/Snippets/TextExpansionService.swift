@@ -15,100 +15,145 @@ final class TextExpansionService {
     return (SecTaskCopyValueForEntitlement(task, "com.apple.security.app-sandbox" as CFString, nil) as? Bool) == true
   }()
 
-  @ObservationIgnored private var tap: CFMachPort?
-  @ObservationIgnored private var source: CFRunLoopSource?
   @ObservationIgnored private var settingsTask: Task<Void, Never>?
   @ObservationIgnored private var healthTask: Task<Void, Never>?
-  @ObservationIgnored private var transactionTask: Task<Void, Never>?
-  @ObservationIgnored private var matcher = SnippetMatcher()
-  @ObservationIgnored private var lastApplication: pid_t?
-  @ObservationIgnored private var lastInputAt = Date.distantPast
-  @ObservationIgnored private(set) var queuedEvents = ExpansionEventBuffer()
-  @ObservationIgnored var isReplacing = false
+  @ObservationIgnored private var policyTasks: [Task<Void, Never>] = []
+  @ObservationIgnored private var workspaceObserver: NSObjectProtocol?
+  @ObservationIgnored private var inputSourceObserver: NSObjectProtocol?
+  @ObservationIgnored private var snippetLibraryObserver: NSObjectProtocol?
+  @ObservationIgnored private var policyGeneration: UInt64 = 0
+  @ObservationIgnored private var refreshSequence: UInt64 = 0
+  @ObservationIgnored private var lastPolicy: ExpansionTapPolicy?
+  @ObservationIgnored private lazy var runtime = ExpansionEventTapRuntime { [weak self] candidate in
+    guard let self else { return }
+    await self.handle(candidate)
+  }
   @ObservationIgnored private var feedbackPanel: NSPanel?
   @ObservationIgnored private var feedbackTask: Task<Void, Never>?
-  static let eventTag: Int64 = 0x434C495050
+  static let eventTag = ExpansionEventTapRuntime.eventTag
 
   func start() {
     guard settingsTask == nil else { return }
+    workspaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor in await self?.refreshNow() }
+    }
+    inputSourceObserver = DistributedNotificationCenter.default().addObserver(
+      forName: Notification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String),
+      object: nil, queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor in await self?.refreshNow() }
+    }
+    snippetLibraryObserver = NotificationCenter.default.addObserver(
+      forName: SnippetLibrary.definitionsDidChange, object: nil, queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor in await self?.refreshNow() }
+    }
+    policyTasks = [
+      Task { [weak self] in
+        for await _ in Defaults.updates(.expansionExcludedApps) { await self?.refreshNow() }
+      },
+      Task { [weak self] in
+        for await _ in Defaults.updates(.ignoredApps) { await self?.refreshNow() }
+      },
+      Task { [weak self] in
+        for await _ in Defaults.updates(.ignoreAllAppsExceptListed) { await self?.refreshNow() }
+      },
+    ]
     settingsTask = Task { [weak self] in
-      for await enabled in Defaults.updates(.textExpansionEnabled) { self?.monitor(enabled: enabled) }
+      guard let self else { return }
+      await self.refreshNow()
+      for await enabled in Defaults.updates(.textExpansionEnabled) { self.monitor(enabled: enabled) }
     }
   }
 
   private func monitor(enabled: Bool) {
     healthTask?.cancel()
     healthTask = nil
-    refresh()
+    Task { await refreshNow() }
     guard enabled, !isSandboxed else { return }
     // Permissions can return while another app is active, and taps can stop across sleep.
     healthTask = Task { [weak self] in
       while !Task.isCancelled {
         do { try await Task.sleep(for: .seconds(2)) } catch { return }
         guard !Task.isCancelled, Defaults[.textExpansionEnabled] else { return }
-        self?.refresh()
+        await self?.refreshNow()
       }
     }
   }
 
   func refresh() {
+    Task { await refreshNow() }
+  }
+
+  private func refreshNow() async {
+    refreshSequence &+= 1
+    let request = refreshSequence
+    let wasListening = isListening
+    let enabled = Defaults[.textExpansionEnabled]
+    let trusted = AXIsProcessTrusted()
+    let application = NSWorkspace.shared.frontmostApplication
+    let identifier = application?.bundleIdentifier ?? ""
+    let isKeyboardLayout = Self.currentInputSourceIsKeyboardLayout()
+    var policy = ExpansionTapPolicy(
+      enabled: enabled && !isSandboxed && trusted,
+      snippets: SnippetLibrary.shared.definitions,
+      excludedApps: Set(Defaults[.expansionExcludedApps]),
+      ignoredApps: Set(Defaults[.ignoredApps]),
+      ignoreAllAppsExceptListed: Defaults[.ignoreAllAppsExceptListed],
+      applicationPID: application?.processIdentifier,
+      applicationIdentifier: identifier.isEmpty ? nil : identifier,
+      applicationIsActive: NSApp.isActive,
+      keyboardLayoutIsActive: isKeyboardLayout,
+      validUntil: ContinuousClock.now.advanced(by: .seconds(5))
+    )
+    if lastPolicy == nil || lastPolicy?.hasSameRules(as: policy) == false {
+      policyGeneration &+= 1
+    }
+    policyGeneration = max(policyGeneration, 1)
+    policy.generation = policyGeneration
+    lastPolicy = policy
+    await runtime.updatePolicy(policy)
+    guard request == refreshSequence else { return }
+
     guard !isSandboxed else {
-      stopListening()
+      await runtime.stopListening(expectedGeneration: policy.generation)
+      guard request == refreshSequence else { return }
+      isListening = false
       status = "System-wide expansion requires a build outside App Sandbox. The library and Try it here remain available."
       return
     }
-    guard Defaults[.textExpansionEnabled] else { stopListening(); status = "Text expansion is off."; return }
-    guard AXIsProcessTrusted() else { stopListening(); status = "Allow Accessibility to replace typed shortcuts."; return }
-    // Accessibility authorizes this active tap; do not require a separate listen-only permission.
-    if let tap {
-      let wasEnabled = CFMachPortIsValid(tap) && CGEvent.tapIsEnabled(tap: tap)
-      if Self.resumeTap(tap) {
-        // Do not erase a replacement error or reset an in-flight match on a healthy check.
-        if !wasEnabled || !isListening {
-          matcher.reset()
-          lastApplication = nil
-          isListening = true
-          status = "Ready. Shortcuts expand in supported text fields."
-        }
-        return
-      }
-      stopListening()
-    }
-    let types: [CGEventType] = [.keyDown, .keyUp, .flagsChanged, .leftMouseDown, .leftMouseUp,
-                               .rightMouseDown, .rightMouseUp, .otherMouseDown, .otherMouseUp, .scrollWheel]
-    let mask = types.reduce(CGEventMask(0)) { $0 | (1 << $1.rawValue) }
-    let callback: CGEventTapCallBack = { _, type, event, context in
-      guard let context else { return Unmanaged.passUnretained(event) }
-      return MainActor.assumeIsolated {
-        Unmanaged<TextExpansionService>.fromOpaque(context).takeUnretainedValue().handle(type, event)
-      }
-    }
-    guard let created = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
-                                          options: .defaultTap, eventsOfInterest: mask, callback: callback,
-                                          userInfo: Unmanaged.passUnretained(self).toOpaque()) else {
-      status = "Keyboard monitoring could not start. Check permissions, then try again."
+    guard enabled else {
+      await runtime.stopListening(expectedGeneration: policy.generation)
+      guard request == refreshSequence else { return }
+      isListening = false
+      status = "Text expansion is off."
       return
     }
-    tap = created
-    source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, created, 0)
-    CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-    guard Self.resumeTap(created) else {
-      stopListening()
+    guard trusted else {
+      await runtime.stopListening(expectedGeneration: policy.generation)
+      guard request == refreshSequence else { return }
+      isListening = false
+      status = "Allow Accessibility to replace typed shortcuts."
+      return
+    }
+    let started = await runtime.startListening(expectedGeneration: policy.generation)
+    guard request == refreshSequence else { return }
+    guard started else {
+      isListening = false
       status = "Keyboard monitoring could not start. Check permissions, then try again."
       return
     }
     isListening = true
-    status = "Ready. Shortcuts expand in supported text fields."
+    if !wasListening { status = "Ready. Shortcuts expand in supported text fields." }
   }
 
-  static func resumeTap(
-    _ tap: CFMachPort,
-    isEnabled: (CFMachPort) -> Bool = { CGEvent.tapIsEnabled(tap: $0) },
-    enable: (CFMachPort) -> Void = { CGEvent.tapEnable(tap: $0, enable: true) }
-  ) -> Bool {
-    guard CFMachPortIsValid(tap) else { return false }
-    if !isEnabled(tap) { enable(tap) }
-    return CFMachPortIsValid(tap) && isEnabled(tap)
+  private static func currentInputSourceIsKeyboardLayout() -> Bool {
+    let inputSource = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
+    guard let raw = TISGetInputSourceProperty(inputSource, kTISPropertyInputSourceType) else { return true }
+    let kind = Unmanaged<CFString>.fromOpaque(raw).takeUnretainedValue()
+    return kind == kTISTypeKeyboardLayout
   }
 
   func openPermissionSettings() {
@@ -117,125 +162,78 @@ final class TextExpansionService {
     }
   }
 
-  private func stopListening() {
-    // A transaction owns the clipboard until it finishes; it must be allowed to clean up.
-    matcher.reset()
-    lastApplication = nil
-    if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
-    if let tap { CFMachPortInvalidate(tap) }
-    tap = nil
-    source = nil
-    isListening = false
-    flushEvents()
-  }
+  private func handle(_ candidate: ExpansionCandidate) async {
+    guard candidate.generation == policyGeneration,
+          await runtime.isCurrent(candidate),
+          candidateContextIsCurrent(candidate),
+          let original = FocusedText.current(), original.pid == candidate.applicationPID,
+          !original.isSecure else {
+      await runtime.finishCandidate(candidate, replayDelimiter: true)
+      return
+    }
 
-  func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
-    let unchanged = Unmanaged.passUnretained(event)
-    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-      matcher.reset()
-      lastApplication = nil
-      isListening = Defaults[.textExpansionEnabled] && tap.map { Self.resumeTap($0) } == true
-      status = isListening ? "Ready. Shortcuts expand in supported text fields." : "Keyboard monitoring paused. Retrying…"
-      return unchanged
-    }
-    if event.getIntegerValueField(.eventSourceUserData) == Self.eventTag { return unchanged }
-    if !isReplacing, type == .keyDown, ExpansionEventBuffer.hasShortcutModifier(event) {
-      matcher.reset()
-      return unchanged
-    }
-    if isReplacing {
-      return queuedEvents.append(event) ? nil : unchanged
-    }
-    if type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown || type == .scrollWheel {
-      matcher.reset()
-      lastApplication = nil
-      return unchanged
-    }
-    guard type == .keyDown else { return unchanged }
-    guard !IsSecureEventInputEnabled(), !NSApp.isActive,
-          let app = NSWorkspace.shared.frontmostApplication,
-          !Defaults[.expansionExcludedApps].contains(app.bundleIdentifier ?? ""),
-          allowsApplication(app.bundleIdentifier ?? "") else {
-      matcher.reset(); lastApplication = nil; return unchanged
-    }
-    if lastApplication != app.processIdentifier || Date.now.timeIntervalSince(lastInputAt) > 10 {
-      matcher.reset()
-    }
-    lastApplication = app.processIdentifier
-    lastInputAt = .now
-    let code = event.getIntegerValueField(.keyboardEventKeycode)
-    if code == 51 { matcher.backspace(); return unchanged }
-    if [36, 48, 53, 76, 117, 123, 124, 125, 126].contains(code) { matcher.reset(); return unchanged }
-    // Input methods own composition; do not reinterpret their intermediate keystrokes.
-    let inputSource = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
-    if let raw = TISGetInputSourceProperty(inputSource, kTISPropertyInputSourceType) {
-      let kind = Unmanaged<CFString>.fromOpaque(raw).takeUnretainedValue()
-      if kind != kTISTypeKeyboardLayout { matcher.reset(); return unchanged }
-    }
-    var characters = [UniChar](repeating: 0, count: 32)
-    var length = 0
-    event.keyboardGetUnicodeString(maxStringLength: characters.count, actualStringLength: &length, unicodeString: &characters)
-    guard length > 0, event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else {
-      matcher.reset(); return unchanged
-    }
-    let text = String(utf16CodeUnits: characters, count: length)
-    guard let match = matcher.append(text, snippets: SnippetLibrary.shared.definitions) else { return unchanged }
-    // Query Accessibility only for a complete trigger. Verify its actual text at the caret before editing.
-    guard let field = FocusedText.current(), !field.isSecure else { return unchanged }
-    // Keep Space away from the target's autocorrection until the abbreviation is replaced.
-    let delimiterEvent = match.snippet.waitsForSpace ? event.copy() : nil
-    if match.snippet.waitsForSpace {
-      guard delimiterEvent != nil else { return unchanged }
-      queuedEvents.holdKeyDown(code)
-    }
-    isReplacing = true
-    transactionTask = Task {
-      var attempted = false
-      // Wait for the target to commit the final character; never select an unverified range.
-      let deadline = ContinuousClock.now.advanced(by: .milliseconds(200))
-      while ContinuousClock.now < deadline {
-        try? await Task.sleep(for: .milliseconds(10))
-        guard ContinuousClock.now < deadline,
-              let current = FocusedText.current(), CFEqual(current.element, field.element) else { break }
-        if let selection = current.selection, let value = current.value, selection.length == 0,
-           Self.replacementRange(value: value, caret: selection.location, match: match) != nil {
-          attempted = await replace(match, in: current)
-          break
-        }
+    var verified: (FocusedText, CFRange)?
+    let preparationDeadline = ContinuousClock.now.advanced(by: .milliseconds(200))
+    while ContinuousClock.now < preparationDeadline {
+      guard candidate.generation == policyGeneration,
+            candidate.gate.phase() == .preparing,
+            await runtime.isCurrent(candidate),
+            let field = FocusedText.current(), field.pid == candidate.applicationPID,
+            CFEqual(field.element, original.element), !field.isSecure else { break }
+      if let selection = field.selection, selection.length == 0, let value = field.value,
+         let range = Self.replacementRange(value: value, caret: selection.location, match: candidate.match) {
+        verified = (field, range)
+        break
       }
-      if !attempted, let delimiterEvent {
-        delimiterEvent.setIntegerValueField(.eventSourceUserData, value: Self.eventTag)
-        delimiterEvent.post(tap: .cgSessionEventTap)
-      }
-      isReplacing = false
-      flushEvents()
+      try? await Task.sleep(for: .milliseconds(10))
     }
-    return delimiterEvent == nil ? unchanged : nil
-  }
+    guard let (field, _) = verified,
+          candidate.generation == policyGeneration,
+          candidateContextIsCurrent(candidate) else {
+      await runtime.finishCandidate(candidate, replayDelimiter: true)
+      return
+    }
 
-  private func allowsApplication(_ identifier: String) -> Bool {
-    let listed = Defaults[.ignoredApps].contains(identifier)
-    return Defaults[.ignoreAllAppsExceptListed] ? listed : !listed
-  }
-
-  private func replace(_ match: SnippetMatcher.Match, in original: FocusedText) async -> Bool {
-    guard Defaults[.textExpansionEnabled], !IsSecureEventInputEnabled(),
-          let field = FocusedText.current(), CFEqual(field.element, original.element),
-          let selection = field.selection, selection.length == 0,
-          let value = field.value,
-          let range = Self.replacementRange(value: value, caret: selection.location, match: match) else { return false }
     let pasteboard = NSPasteboard.general
-    guard let expansion = SnippetTemplate.render(match.snippet, clipboard: pasteboard.string(forType: .string) ?? "") else {
-      status = SnippetTemplate.sizeError; return false
+    guard let expansion = SnippetTemplate.render(candidate.match.snippet, clipboard: pasteboard.string(forType: .string) ?? "") else {
+      status = SnippetTemplate.sizeError
+      await runtime.finishCandidate(candidate, replayDelimiter: true)
+      return
     }
-    let rendered = expansion + match.suffix
-    guard rendered.utf16.count <= 100_000 else { status = "Expansion is too large to insert."; return false }
+    let rendered = expansion + candidate.match.suffix
+    guard rendered.utf16.count <= 100_000 else {
+      status = "Expansion is too large to insert."
+      await runtime.finishCandidate(candidate, replayDelimiter: true)
+      return
+    }
     let snapshot = PasteboardSnapshot(pasteboard)
     guard snapshot.isComplete, pasteboard.changeCount == snapshot.changeCount else {
       status = "The current clipboard cannot be preserved. Shortcut left unchanged."
-      return false
+      await runtime.finishCandidate(candidate, replayDelimiter: true)
+      return
     }
-    guard field.setSelection(range) else { status = "This text field does not support shortcut replacement."; return false }
+
+    guard candidate.generation == policyGeneration,
+          candidate.gate.phase() == .preparing,
+          candidateContextIsCurrent(candidate),
+          let currentField = FocusedText.current(), currentField.pid == candidate.applicationPID,
+          CFEqual(currentField.element, field.element), !currentField.isSecure,
+          let currentSelection = currentField.selection, currentSelection.length == 0,
+          let currentValue = currentField.value,
+          let currentRange = Self.replacementRange(value: currentValue, caret: currentSelection.location,
+                                                   match: candidate.match),
+          pasteboard.changeCount == snapshot.changeCount,
+          candidate.gate.beginCommit(currentGeneration: policyGeneration) else {
+      await runtime.finishCandidate(candidate, replayDelimiter: true)
+      return
+    }
+    // The gate claim and first Accessibility mutation stay in one uninterrupted main-actor turn.
+    guard currentField.setSelection(currentRange) else {
+      status = "This text field does not support shortcut replacement."
+      await runtime.finishCommitted(candidate.token, replayDelimiter: true)
+      return
+    }
+
     let ownedCount = writeTemporary(rendered, to: pasteboard)
     postPaste()
     var inserted = false
@@ -243,18 +241,37 @@ final class TextExpansionService {
     while ContinuousClock.now < deadline {
       try? await Task.sleep(for: .milliseconds(10))
       guard ContinuousClock.now < deadline else { break }
-      if field.contains(rendered, at: range.location) { inserted = true; break }
+      if currentField.contains(rendered, at: currentRange.location) { inserted = true; break }
     }
     // Never replace a clipboard item copied by the user or another application during expansion.
     if pasteboard.changeCount == ownedCount { snapshot.restore(to: pasteboard); Clipboard.shared.changeCount = pasteboard.changeCount }
+    await runtime.finishCommitted(candidate.token, replayDelimiter: false)
     if inserted {
-      UsageStatistics.shared.recordExpansion(expandedCharacters: expansion.count, abbreviationCharacters: match.snippet.abbreviation.count)
-      showFeedback(name: match.snippet.name, bounds: field.bounds(for: CFRange(location: range.location, length: rendered.utf16.count)))
+      UsageStatistics.shared.recordExpansion(expandedCharacters: expansion.count,
+                                             abbreviationCharacters: candidate.match.snippet.abbreviation.count)
+      showFeedback(name: candidate.match.snippet.name,
+                   bounds: currentField.bounds(for: CFRange(location: currentRange.location,
+                                                            length: rendered.utf16.count)))
     } else {
       status = "The target app did not confirm insertion. Check its text before continuing."
     }
-    // Once paste has been posted, never replay a delimiter that might arrive after it.
+  }
+
+  private func candidateContextIsCurrent(_ candidate: ExpansionCandidate) -> Bool {
+    guard Defaults[.textExpansionEnabled], !NSApp.isActive, !IsSecureEventInputEnabled(),
+          Self.currentInputSourceIsKeyboardLayout(),
+          let application = NSWorkspace.shared.frontmostApplication,
+          application.processIdentifier == candidate.applicationPID,
+          application.bundleIdentifier == candidate.applicationIdentifier,
+          !Defaults[.expansionExcludedApps].contains(candidate.applicationIdentifier),
+          allowsApplication(candidate.applicationIdentifier),
+          SnippetLibrary.shared.definitions.contains(candidate.match.snippet) else { return false }
     return true
+  }
+
+  private func allowsApplication(_ identifier: String) -> Bool {
+    let listed = Defaults[.ignoredApps].contains(identifier)
+    return Defaults[.ignoreAllAppsExceptListed] ? listed : !listed
   }
 
   static func replacementRange(value: String, caret: Int, match: SnippetMatcher.Match) -> CFRange? {
@@ -274,29 +291,53 @@ final class TextExpansionService {
 
   func pasteSnippet(_ text: String, name: String) {
     guard Accessibility.allowed else {
-      Clipboard.shared.copy(text)
-      _ = Accessibility.check()
+      Task {
+        await copyManualSnippet(text)
+        _ = Accessibility.check()
+      }
       return
     }
-    guard !isReplacing, text.utf16.count <= 100_000 else { return }
-    isReplacing = true
-    transactionTask = Task {
-      defer { isReplacing = false; flushEvents() }
-      try? await Task.sleep(for: .milliseconds(40))
-      guard !NSApp.isActive, !IsSecureEventInputEnabled() else { return }
-      let field = FocusedText.current()
-      let insertionLocation = field?.selection?.location
-      Clipboard.shared.copy(text)
-      postPaste()
-      let deadline = ContinuousClock.now.advanced(by: .milliseconds(500))
-      while ContinuousClock.now < deadline {
-        try? await Task.sleep(for: .milliseconds(10))
-        guard ContinuousClock.now < deadline else { break }
-        if let field, let insertionLocation, field.contains(text, at: insertionLocation) { break }
-      }
-      if let field, let insertionLocation, field.contains(text, at: insertionLocation) {
-        showFeedback(name: name, bounds: field.bounds(for: CFRange(location: insertionLocation, length: text.utf16.count)))
-      }
+    guard text.utf16.count <= 100_000 else { return }
+    Task { await performManualPaste(text, name: name) }
+  }
+
+  private func copyManualSnippet(_ text: String) async {
+    guard text.utf16.count <= 100_000,
+          let transaction = await runtime.beginManualTransaction() else { return }
+    guard transaction.gate.beginCommit(currentGeneration: nil) else {
+      await runtime.cancelManualTransaction(transaction)
+      return
+    }
+    Clipboard.shared.copy(text)
+    await runtime.finishManualTransaction(transaction)
+  }
+
+  private func performManualPaste(_ text: String, name: String) async {
+    guard let transaction = await runtime.beginManualTransaction() else { return }
+    try? await Task.sleep(for: .milliseconds(40))
+    guard transaction.gate.phase() == .preparing, !NSApp.isActive, !IsSecureEventInputEnabled() else {
+      await runtime.cancelManualTransaction(transaction)
+      return
+    }
+    let field = FocusedText.current()
+    let insertionLocation = field?.selection?.location
+    guard transaction.gate.beginCommit(currentGeneration: nil) else {
+      await runtime.cancelManualTransaction(transaction)
+      return
+    }
+    // Commit immediately before writing the requested clipboard contents and posting Paste.
+    Clipboard.shared.copy(text)
+    postPaste()
+    let deadline = ContinuousClock.now.advanced(by: .milliseconds(500))
+    while ContinuousClock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
+      guard ContinuousClock.now < deadline else { break }
+      if let field, let insertionLocation, field.contains(text, at: insertionLocation) { break }
+    }
+    let inserted = if let field, let insertionLocation { field.contains(text, at: insertionLocation) } else { false }
+    await runtime.finishManualTransaction(transaction)
+    if inserted, let field, let insertionLocation {
+      showFeedback(name: name, bounds: field.bounds(for: CFRange(location: insertionLocation, length: text.utf16.count)))
     }
   }
 
@@ -310,14 +351,6 @@ final class TextExpansionService {
 
   private func postPaste() {
     Clipboard.shared.postPaste(eventTag: Self.eventTag)
-  }
-
-  private func flushEvents() {
-    let events = queuedEvents.drain()
-    events.forEach { event in
-      event.setIntegerValueField(.eventSourceUserData, value: Self.eventTag)
-      event.post(tap: .cgSessionEventTap)
-    }
   }
 
   func playExpansionSound() {
@@ -388,48 +421,9 @@ final class TextExpansionService {
   }
 }
 
-struct ExpansionEventBuffer {
-  private var events: [CGEvent] = []
-  private var heldKeys: Set<Int64> = []
-  private var hasQueuedShortcut = false
-
-  static func hasShortcutModifier(_ event: CGEvent) -> Bool {
-    !event.flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty
-  }
-
-  // A Space delimiter is held separately until replacement succeeds or the original key is replayed.
-  mutating func holdKeyDown(_ code: Int64) { heldKeys.insert(code) }
-
-  mutating func append(_ event: CGEvent) -> Bool {
-    let code = event.getIntegerValueField(.keyboardEventKeycode)
-    switch event.type {
-    case .flagsChanged:
-      // Preserve the chord by placing modifier releases after its queued shortcut press.
-      guard hasQueuedShortcut else { return false }
-    case .keyUp:
-      // Delaying the release of an already delivered key can trigger macOS press-and-hold.
-      guard heldKeys.contains(code) else { return false }
-    case .keyDown:
-      if event.getIntegerValueField(.keyboardEventAutorepeat) != 0, !heldKeys.contains(code) { return false }
-    default:
-      break
-    }
-    guard let copy = event.copy() else { return false }
-    if event.type == .keyDown { heldKeys.insert(code) }
-    if event.type == .keyUp { heldKeys.remove(code) }
-    if event.type == .keyDown, Self.hasShortcutModifier(event) { hasQueuedShortcut = true }
-    events.append(copy)
-    return true
-  }
-
-  mutating func drain() -> [CGEvent] {
-    defer { events.removeAll(); heldKeys.removeAll(); hasQueuedShortcut = false }
-    return events
-  }
-}
-
 struct FocusedText {
   let element: AXUIElement
+  let pid: pid_t
 
   static func current() -> FocusedText? {
     let system = AXUIElementCreateSystemWide()
@@ -439,7 +433,9 @@ struct FocusedText {
           let result, CFGetTypeID(result) == AXUIElementGetTypeID() else { return nil }
     let element = unsafeBitCast(result, to: AXUIElement.self)
     AXUIElementSetMessagingTimeout(element, 0.05)
-    return FocusedText(element: element)
+    var pid: pid_t = 0
+    guard AXUIElementGetPid(element, &pid) == .success else { return nil }
+    return FocusedText(element: element, pid: pid)
   }
 
   private func attribute(_ name: String) -> CFTypeRef? {
