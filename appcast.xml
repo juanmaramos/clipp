@@ -6,7 +6,7 @@
     <description>Most recent changes with links to updates.</description>
     <language>en</language>
     <item>
-      <title>Clipp 2.7.4 (build 66)</title>
+      <title>Clipp 2.7.5 (build 67)</title>
       <description>
         <![CDATA[
           <ul>
@@ -14,15 +14,15 @@
           </ul>
         ]]>
       </description>
-      <pubDate>Fri, 09 Oct 2026 11:18:39 +0000</pubDate>
-      <sparkle:releaseNotesLink>https://github.com/juanmaramos/clipp/releases/tag/v2.7.4-build.66</sparkle:releaseNotesLink>
+      <pubDate>Fri, 09 Oct 2026 12:33:09 +0000</pubDate>
+      <sparkle:releaseNotesLink>https://github.com/juanmaramos/clipp/releases/tag/v2.7.5-build.67</sparkle:releaseNotesLink>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <enclosure
-        url="https://github.com/juanmaramos/clipp/releases/download/v2.7.4-build.66/Clipp.zip"
-        sparkle:version="66"
-        sparkle:shortVersionString="2.7.4"
-        sparkle:edSignature="n6HrXySId1b+/lgUBAzAkmQ+0R62c7J5OpEE8jLL9w7P8u3bvpPYhpNDPVBcP0xnros6RB6Q+gOQn9A5SydVCw=="
-        length="6732320"
+        url="https://github.com/juanmaramos/clipp/releases/download/v2.7.5-build.67/Clipp.zip"
+        sparkle:version="67"
+        sparkle:shortVersionString="2.7.5"
+        sparkle:edSignature="sRztY67ClQs05XSlMZHYqHKMPmZko76bKJyBT5sYUtB4AaYxNFRBfQMPxueHzIYAfMAzjS3ftuhjctR82uf3BA=="
+        length="6850118"
         type="application/octet-stream"
       />
     </item>
