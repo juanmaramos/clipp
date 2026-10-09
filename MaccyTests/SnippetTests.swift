@@ -73,7 +73,113 @@ final class SnippetTests: XCTestCase {
   private func keyboardEvent(_ code: CGKeyCode, down: Bool, repeating: Bool = false) throws -> CGEvent {
     let event = try XCTUnwrap(CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: down))
     event.setIntegerValueField(.keyboardEventAutorepeat, value: repeating ? 1 : 0)
+    event.flags = []
     return event
+  }
+
+  func testShortcutModifiersIncludeCommandControlAndOptionOnly() throws {
+    let event = try keyboardEvent(48, down: true)
+    let unmodifiedFlags: [CGEventFlags] = [.maskShift, .maskAlphaShift, []]
+    for flags in unmodifiedFlags {
+      event.flags = flags
+      XCTAssertFalse(ExpansionEventBuffer.hasShortcutModifier(event))
+    }
+    let shortcutFlags: [CGEventFlags] = [
+      .maskCommand, .maskControl, .maskAlternate,
+      .maskCommand.union(.maskShift), .maskControl.union(.maskAlternate),
+    ]
+    for flags in shortcutFlags {
+      event.flags = flags
+      XCTAssertTrue(ExpansionEventBuffer.hasShortcutModifier(event))
+    }
+  }
+
+  func testIdleShortcutIsForwardedAndLeavesTheBufferEmpty() throws {
+    let service = TextExpansionService()
+    let event = try keyboardEvent(48, down: true)
+    event.flags = .maskCommand
+
+    let forwarded = service.handle(.keyDown, event)?.takeUnretainedValue()
+
+    XCTAssertTrue(forwarded === event)
+    var queuedEvents = service.queuedEvents
+    XCTAssertTrue(queuedEvents.drain().isEmpty)
+  }
+
+  func testModifierReleaseStaysQueuedAfterShortcutDuringReplacement() throws {
+    let shortcuts: [(flags: CGEventFlags, modifierCode: CGKeyCode)] = [
+      (.maskCommand, 55), (.maskControl, 59), (.maskAlternate, 58),
+    ]
+    for (flags, modifierCode) in shortcuts {
+      let service = TextExpansionService()
+      service.isReplacing = true
+
+      let tabDown = try keyboardEvent(48, down: true)
+      tabDown.flags = flags
+      XCTAssertNil(service.handle(.keyDown, tabDown))
+
+      let modifierUp = try keyboardEvent(modifierCode, down: false)
+      modifierUp.type = .flagsChanged
+      modifierUp.flags = []
+      XCTAssertNil(service.handle(.flagsChanged, modifierUp))
+
+      let tabUp = try keyboardEvent(48, down: false)
+      tabUp.flags = []
+      XCTAssertNil(service.handle(.keyUp, tabUp))
+      var queuedEvents = service.queuedEvents
+      let events = queuedEvents.drain()
+      XCTAssertEqual(events.map(\.type), [.keyDown, .flagsChanged, .keyUp])
+      XCTAssertEqual(events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [48, Int64(modifierCode), 48])
+    }
+  }
+
+  func testModifiedRepeatOfQueuedKeyStaysWithItsPair() throws {
+    let service = TextExpansionService()
+    service.isReplacing = true
+
+    XCTAssertNil(service.handle(.keyDown, try keyboardEvent(7, down: true)))
+    let repeated = try keyboardEvent(7, down: true, repeating: true)
+    repeated.flags = .maskCommand
+    XCTAssertNil(service.handle(.keyDown, repeated))
+    let released = try keyboardEvent(7, down: false)
+    released.flags = .maskCommand
+    XCTAssertNil(service.handle(.keyUp, released))
+
+    var queuedEvents = service.queuedEvents
+    let events = queuedEvents.drain()
+    XCTAssertEqual(events.map(\.type), [.keyDown, .keyDown, .keyUp])
+    XCTAssertEqual(events.map { $0.getIntegerValueField(.keyboardEventKeycode) }, [7, 7, 7])
+  }
+
+  func testModifierChangesPassUntilAShortcutIsQueued() throws {
+    var buffer = ExpansionEventBuffer()
+    let modifierDown = try keyboardEvent(55, down: false)
+    modifierDown.type = .flagsChanged
+    modifierDown.flags = .maskCommand
+    XCTAssertFalse(buffer.append(modifierDown))
+
+    let tabDown = try keyboardEvent(48, down: true)
+    tabDown.flags = .maskCommand
+    XCTAssertTrue(buffer.append(tabDown))
+    let commandUp = try keyboardEvent(55, down: false)
+    commandUp.type = .flagsChanged
+    commandUp.flags = []
+    XCTAssertTrue(buffer.append(commandUp))
+
+    XCTAssertEqual(buffer.drain().map(\.type), [.keyDown, .flagsChanged])
+    XCTAssertFalse(buffer.append(commandUp))
+  }
+
+  func testTaggedShortcutPassesDuringReplacement() throws {
+    let service = TextExpansionService()
+    service.isReplacing = true
+    let event = try keyboardEvent(9, down: true)
+    event.flags = .maskCommand
+    event.setIntegerValueField(.eventSourceUserData, value: TextExpansionService.eventTag)
+
+    XCTAssertTrue(service.handle(.keyDown, event)?.takeUnretainedValue() === event)
+    var queuedEvents = service.queuedEvents
+    XCTAssertTrue(queuedEvents.drain().isEmpty)
   }
 
   func testExpansionDoesNotHoldReleasesOfAlreadyDeliveredTriggerKeys() throws {

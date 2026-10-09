@@ -23,11 +23,11 @@ final class TextExpansionService {
   @ObservationIgnored private var matcher = SnippetMatcher()
   @ObservationIgnored private var lastApplication: pid_t?
   @ObservationIgnored private var lastInputAt = Date.distantPast
-  @ObservationIgnored private var queuedEvents = ExpansionEventBuffer()
-  @ObservationIgnored private var isReplacing = false
+  @ObservationIgnored private(set) var queuedEvents = ExpansionEventBuffer()
+  @ObservationIgnored var isReplacing = false
   @ObservationIgnored private var feedbackPanel: NSPanel?
   @ObservationIgnored private var feedbackTask: Task<Void, Never>?
-  private static let eventTag: Int64 = 0x434C495050
+  static let eventTag: Int64 = 0x434C495050
 
   func start() {
     guard settingsTask == nil else { return }
@@ -129,7 +129,7 @@ final class TextExpansionService {
     flushEvents()
   }
 
-  private func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
+  func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
     let unchanged = Unmanaged.passUnretained(event)
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
       matcher.reset()
@@ -139,6 +139,10 @@ final class TextExpansionService {
       return unchanged
     }
     if event.getIntegerValueField(.eventSourceUserData) == Self.eventTag { return unchanged }
+    if !isReplacing, type == .keyDown, ExpansionEventBuffer.hasShortcutModifier(event) {
+      matcher.reset()
+      return unchanged
+    }
     if isReplacing {
       return queuedEvents.append(event) ? nil : unchanged
     }
@@ -159,8 +163,6 @@ final class TextExpansionService {
     }
     lastApplication = app.processIdentifier
     lastInputAt = .now
-    let flags = event.flags.intersection([.maskCommand, .maskControl, .maskAlternate])
-    guard flags.isEmpty else { matcher.reset(); return unchanged }
     let code = event.getIntegerValueField(.keyboardEventKeycode)
     if code == 51 { matcher.backspace(); return unchanged }
     if [36, 48, 53, 76, 117, 123, 124, 125, 126].contains(code) { matcher.reset(); return unchanged }
@@ -389,6 +391,11 @@ final class TextExpansionService {
 struct ExpansionEventBuffer {
   private var events: [CGEvent] = []
   private var heldKeys: Set<Int64> = []
+  private var hasQueuedShortcut = false
+
+  static func hasShortcutModifier(_ event: CGEvent) -> Bool {
+    !event.flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty
+  }
 
   // A Space delimiter is held separately until replacement succeeds or the original key is replayed.
   mutating func holdKeyDown(_ code: Int64) { heldKeys.insert(code) }
@@ -397,7 +404,8 @@ struct ExpansionEventBuffer {
     let code = event.getIntegerValueField(.keyboardEventKeycode)
     switch event.type {
     case .flagsChanged:
-      return false
+      // Preserve the chord by placing modifier releases after its queued shortcut press.
+      guard hasQueuedShortcut else { return false }
     case .keyUp:
       // Delaying the release of an already delivered key can trigger macOS press-and-hold.
       guard heldKeys.contains(code) else { return false }
@@ -409,12 +417,13 @@ struct ExpansionEventBuffer {
     guard let copy = event.copy() else { return false }
     if event.type == .keyDown { heldKeys.insert(code) }
     if event.type == .keyUp { heldKeys.remove(code) }
+    if event.type == .keyDown, Self.hasShortcutModifier(event) { hasQueuedShortcut = true }
     events.append(copy)
     return true
   }
 
   mutating func drain() -> [CGEvent] {
-    defer { events.removeAll(); heldKeys.removeAll() }
+    defer { events.removeAll(); heldKeys.removeAll(); hasQueuedShortcut = false }
     return events
   }
 }
